@@ -1,0 +1,21 @@
+{
+  "name": "@cct/ui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shared UI components for Ceylon Cargo Transport",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "scripts": {
+    "lint": "eslint .",
+    "clean": "rm -rf node_modules"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/react": "^18.2.46",
+    "@types/react-dom": "^18.2.18"
+  }
+}
