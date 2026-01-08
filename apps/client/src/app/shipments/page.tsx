@@ -70,7 +70,7 @@ export default function ShipmentsPage() {
     try {
       setLoading(true);
       const response = await shipmentService.getAll();
-      const shipmentsData = response.data || [];
+      const shipmentsData = response.data?.shipments || [];
       setShipments(shipmentsData);
 
       // Calculate stats from fetched data
@@ -139,7 +139,7 @@ export default function ShipmentsPage() {
       title="My Shipments"
       subtitle="Track and manage all your shipments"
     >
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="space-y-6">
         {/* Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {/* Total Shipments */}

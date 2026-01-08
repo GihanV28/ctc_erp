@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Stats API</title>
+</head>
+<body>
+    <h1>Testing Shipment Stats API</h1>
+    <button onclick="testStats()">Test Stats Endpoint</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function testStats() {
+            try {
+                // Get token from localStorage (you'll need to login first)
+                const token = localStorage.getItem('token');
+
+                const response = await fetch('http://localhost:5000/api/shipments/stats', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('result').textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -6,15 +6,41 @@ const { hasPermission, hasAnyPermission } = require('../middleware/rbac');
 
 /**
  * @swagger
- * /api/tracking/{trackingId}:
+ * /api/tracking/public/{trackingNumber}:
  *   get:
- *     summary: Get tracking by tracking ID (public)
+ *     summary: Get tracking by tracking number (public)
  *     tags: [Tracking]
  */
-router.get('/:trackingId', trackingController.getTrackingByTrackingId);
+router.get('/public/:trackingNumber', trackingController.getTrackingByNumber);
 
 // All routes below require authentication
 router.use(auth);
+
+/**
+ * @swagger
+ * /api/tracking/active-shipments:
+ *   get:
+ *     summary: Get active shipments for tracking page
+ *     tags: [Tracking]
+ */
+router.get(
+  '/active-shipments',
+  hasAnyPermission(['tracking:read', 'tracking:read:own']),
+  trackingController.getActiveShipments
+);
+
+/**
+ * @swagger
+ * /api/tracking/all:
+ *   get:
+ *     summary: Get all tracking updates (across all shipments)
+ *     tags: [Tracking]
+ */
+router.get(
+  '/all',
+  hasAnyPermission(['tracking:read', 'tracking:read:own']),
+  trackingController.getAllTrackingUpdates
+);
 
 /**
  * @swagger

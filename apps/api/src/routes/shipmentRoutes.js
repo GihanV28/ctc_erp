@@ -46,7 +46,7 @@ router.use(auth);
  */
 router.get(
   '/stats',
-  hasAnyPermission(['shipments:read', 'shipments:read:own']),
+  hasAnyPermission('shipments:read', 'shipments:read:own'),
   shipmentController.getShipmentStats
 );
 
@@ -92,7 +92,7 @@ router.get(
  */
 router.get(
   '/',
-  hasAnyPermission(['shipments:read', 'shipments:read:own']),
+  hasAnyPermission('shipments:read', 'shipments:read:own'),
   shipmentController.getAllShipments
 );
 
@@ -123,7 +123,7 @@ router.get(
  */
 router.get(
   '/:id',
-  hasAnyPermission(['shipments:read', 'shipments:read:own']),
+  hasAnyPermission('shipments:read', 'shipments:read:own'),
   shipmentController.getShipment
 );
 

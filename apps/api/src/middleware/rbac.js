@@ -40,24 +40,14 @@ exports.hasAnyPermission = (...permissions) => {
       await req.user.populate('role');
     }
 
-    // Debug logging
-    console.log('[RBAC Debug] User:', req.user.email);
-    console.log('[RBAC Debug] User Type:', req.user.userType);
-    console.log('[RBAC Debug] Required permissions (any of):', permissions);
-    console.log('[RBAC Debug] User role:', req.user.role?.name);
-    console.log('[RBAC Debug] User role permissions:', req.user.role?.permissions);
-
     // Check if user has any of the required permissions
     for (const permission of permissions) {
       const hasPermission = await req.user.hasPermission(permission);
-      console.log(`[RBAC Debug] Check ${permission}:`, hasPermission);
       if (hasPermission) {
-        console.log('[RBAC Debug] ✅ Permission granted');
         return next(); // User has at least one permission
       }
     }
 
-    console.log('[RBAC Debug] ❌ No matching permissions found');
     return next(
       new ApiError('You do not have any of the required permissions', 403)
     );

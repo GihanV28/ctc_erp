@@ -70,9 +70,9 @@ const userSchema = new mongoose.Schema(
     },
     systemPreferences: {
       language: { type: String, default: 'English' },
-      timezone: { type: String, default: 'Asia/Phnom_Penh (UTC+7:00)' },
+      timezone: { type: String, default: 'Asia/Bangkok' },
       dateFormat: { type: String, default: 'DD/MM/YYYY' },
-      currency: { type: String, default: 'USD ($)' },
+      currency: { type: String, default: 'USD' },
       updatedAt: Date,
     },
     role: {

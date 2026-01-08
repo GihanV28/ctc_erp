@@ -3,7 +3,6 @@ const Shipment = require('../models/Shipment');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
-const emailService = require('../services/emailService');
 
 /**
  * @desc    Get active shipments for tracking page
@@ -31,7 +30,7 @@ exports.getActiveShipments = asyncHandler(async (req, res) => {
     shipments.map(async (shipment) => {
       const lastUpdate = await TrackingUpdate.findOne({ shipment: shipment._id })
         .sort({ timestamp: -1 })
-        .select('status timestamp location');
+        .select('status timestamp');
 
       return {
         ...shipment.toObject(),
@@ -49,30 +48,14 @@ exports.getActiveShipments = asyncHandler(async (req, res) => {
  * @access  Private
  */
 exports.getAllTrackingUpdates = asyncHandler(async (req, res) => {
-  const { limit = 50, shipmentStatus, days } = req.query;
+  const { limit = 50 } = req.query;
 
   const query = {};
 
-  // Filter by date range if days parameter is provided
-  if (days) {
-    const daysAgo = new Date();
-    daysAgo.setDate(daysAgo.getDate() - parseInt(days));
-    query.timestamp = { $gte: daysAgo };
-  }
-
-  // Get shipments based on status filter
-  let shipmentFilter = {};
+  // If user is a client, only show updates for their shipments
   if (req.user.userType === 'client' && req.user.clientId) {
-    shipmentFilter.client = req.user.clientId;
-  }
-  if (shipmentStatus) {
-    shipmentFilter.status = shipmentStatus;
-  }
-
-  // If we have shipment filters, get matching shipment IDs
-  if (Object.keys(shipmentFilter).length > 0) {
-    const shipments = await Shipment.find(shipmentFilter).select('_id');
-    query.shipment = { $in: shipments.map(s => s._id) };
+    const clientShipments = await Shipment.find({ client: req.user.clientId }).select('_id');
+    query.shipment = { $in: clientShipments.map(s => s._id) };
   }
 
   const trackingUpdates = await TrackingUpdate.find(query)
@@ -171,8 +154,7 @@ exports.createTrackingUpdate = asyncHandler(async (req, res) => {
     timestamp,
     isPublic,
     attachments,
-    metadata,
-    notifyClient
+    metadata
   } = req.body;
 
   const shipmentDoc = await Shipment.findById(shipment).populate('client', 'contactPerson');
@@ -198,27 +180,6 @@ exports.createTrackingUpdate = asyncHandler(async (req, res) => {
   });
 
   await trackingUpdate.populate('createdBy', 'firstName lastName email');
-
-  // Send email notification if requested
-  if (notifyClient && shipmentDoc.client?.contactPerson?.email) {
-    try {
-      await emailService.sendTrackingUpdateEmail(
-        shipmentDoc.client.contactPerson.email,
-        {
-          clientName: shipmentDoc.client.contactPerson.firstName,
-          shipmentId: shipmentDoc.shipmentId,
-          trackingNumber: shipmentDoc.trackingNumber,
-          status,
-          location,
-          description,
-          timestamp: trackingUpdate.timestamp,
-        }
-      );
-    } catch (emailError) {
-      console.error('Failed to send tracking update email:', emailError);
-      // Don't fail the request if email fails
-    }
-  }
 
   res.status(201).json(new ApiResponse(201, { trackingUpdate }, 'Tracking update created successfully'));
 });

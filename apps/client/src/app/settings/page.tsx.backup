@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import PortalLayout from '@/components/layout/PortalLayout';
 import {
   Shield,
@@ -11,26 +11,19 @@ import {
   EyeOff,
   AlertTriangle,
 } from 'lucide-react';
-import { useProfilePhoto } from '@/context/ProfilePhotoContext';
+import { mockUser } from '@/lib/mockData';
 import Button from '@/components/ui/Button';
-import { settingsService, NotificationPreferences, SystemPreferences } from '@/services/settingsService';
-import { useRouter } from 'next/navigation';
 
 export default function SettingsPage() {
-  const { profilePhoto, userName } = useProfilePhoto();
-  const router = useRouter();
-
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [passwordUpdating, setPasswordUpdating] = useState(false);
 
-  const [notifications, setNotifications] = useState<NotificationPreferences>({
+  const [notifications, setNotifications] = useState({
     shipmentUpdates: true,
-    invoiceAlerts: true,
-    systemUpdates: true,
-    newsletter: false,
+    deliveryNotifications: true,
+    invoiceBilling: true,
+    marketing: false,
+    systemAnnouncements: true,
   });
 
   const [securityForm, setSecurityForm] = useState({
@@ -39,198 +32,56 @@ export default function SettingsPage() {
     confirmPassword: '',
   });
 
-  const [preferences, setPreferences] = useState<SystemPreferences>({
+  const [preferences, setPreferences] = useState({
     language: 'English',
     timezone: 'UTC',
     dateFormat: 'MM/DD/YYYY',
     currency: 'USD',
   });
 
-  // Load settings on mount
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
-    try {
-      setLoading(true);
-      const [notifPrefs, sysPrefs] = await Promise.all([
-        settingsService.getNotificationPreferences(),
-        settingsService.getSystemPreferences(),
-      ]);
-
-      setNotifications(notifPrefs);
-      setPreferences(sysPrefs);
-    } catch (error) {
-      console.error('Error fetching settings:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleNotificationToggle = (key: keyof typeof notifications) => {
+    setNotifications((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
   };
 
-  const handleNotificationToggle = async (key: keyof NotificationPreferences) => {
-    const updatedNotifications = {
-      ...notifications,
-      [key]: !notifications[key],
-    };
-    setNotifications(updatedNotifications);
-
-    // Auto-save notification changes
-    try {
-      await settingsService.updateNotificationPreferences(updatedNotifications);
-    } catch (error) {
-      console.error('Error updating notifications:', error);
-      // Revert on error
-      setNotifications(notifications);
-    }
+  const handleUpdatePassword = () => {
+    console.log('Updating password...');
   };
 
-  const handleUpdatePassword = async () => {
-    if (!securityForm.currentPassword || !securityForm.newPassword || !securityForm.confirmPassword) {
-      alert('Please fill in all password fields');
-      return;
-    }
-
-    if (securityForm.newPassword !== securityForm.confirmPassword) {
-      alert('New passwords do not match');
-      return;
-    }
-
-    if (securityForm.newPassword.length < 8) {
-      alert('Password must be at least 8 characters');
-      return;
-    }
-
-    try {
-      setPasswordUpdating(true);
-      await settingsService.changePassword(
-        securityForm.currentPassword,
-        securityForm.newPassword,
-        securityForm.confirmPassword
-      );
-      alert('Password updated successfully!');
-      setSecurityForm({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      });
-    } catch (error: any) {
-      alert(error.message || 'Failed to update password');
-    } finally {
-      setPasswordUpdating(false);
-    }
+  const handleDownloadData = () => {
+    console.log('Downloading user data...');
   };
 
-  const handleTwoFactorToggle = async (enabled: boolean) => {
-    try {
-      const result = await settingsService.toggleTwoFactor(enabled);
-      setTwoFactorEnabled(result);
-      alert(`Two-factor authentication ${result ? 'enabled' : 'disabled'} successfully!`);
-    } catch (error: any) {
-      alert(error.message || 'Failed to toggle two-factor authentication');
-    }
+  const handleViewLog = () => {
+    console.log('Viewing activity log...');
   };
 
-  const handleDownloadData = async () => {
-    try {
-      const data = await settingsService.downloadUserData();
-
-      // Convert to JSON and download
-      const dataStr = JSON.stringify(data, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `user-data-${new Date().toISOString()}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-
-      alert('Data downloaded successfully!');
-    } catch (error: any) {
-      alert(error.message || 'Failed to download data');
-    }
+  const handleDeactivate = () => {
+    console.log('Deactivating account...');
   };
 
-  const handleViewLog = async () => {
-    try {
-      const log = await settingsService.getActivityLog();
-      alert(JSON.stringify(log, null, 2));
-    } catch (error: any) {
-      alert(error.message || 'Failed to fetch activity log');
-    }
+  const handleDeleteAccount = () => {
+    console.log('Deleting account...');
   };
 
-  const handleDeactivate = async () => {
-    if (!confirm('Are you sure you want to deactivate your account? You can reactivate it anytime by logging in again.')) {
-      return;
-    }
-
-    try {
-      await settingsService.deactivateAccount();
-      alert('Account deactivated successfully');
-      localStorage.clear();
-      router.push('/login');
-    } catch (error: any) {
-      alert(error.message || 'Failed to deactivate account');
-    }
+  const handleSaveSettings = () => {
+    console.log('Saving all settings...');
   };
-
-  const handleDeleteAccount = async () => {
-    const password = prompt('Enter your password to confirm account deletion:');
-
-    if (!password) {
-      return;
-    }
-
-    if (!confirm('This action cannot be undone. Are you absolutely sure you want to delete your account?')) {
-      return;
-    }
-
-    try {
-      await settingsService.deleteAccount(password);
-      alert('Account deleted successfully');
-      localStorage.clear();
-      router.push('/login');
-    } catch (error: any) {
-      alert(error.message || 'Failed to delete account');
-    }
-  };
-
-  const handleSaveSettings = async () => {
-    try {
-      setSaving(true);
-      await settingsService.updateSystemPreferences(preferences);
-      alert('Settings saved successfully!');
-    } catch (error: any) {
-      alert(error.message || 'Failed to save settings');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const getInitials = () => {
-    if (!userName || userName === 'User') return 'U';
-    const parts = userName.split(' ');
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    }
-    return userName.substring(0, 2).toUpperCase();
-  };
-
-  if (loading) {
-    return (
-      <PortalLayout title="Settings" subtitle="Loading...">
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-        </div>
-      </PortalLayout>
-    );
-  }
 
   return (
     <PortalLayout
       title="Settings"
       subtitle="Manage your account preferences and security"
+      headerAction={
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-gray-700">{mockUser.name}</span>
+          <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-semibold">
+            {mockUser.avatar}
+          </div>
+        </div>
+      }
     >
       <div className="space-y-6">
         {/* Security Section */}
@@ -305,7 +156,7 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <Button variant="primary" onClick={handleUpdatePassword} loading={passwordUpdating}>
+            <Button variant="primary" onClick={handleUpdatePassword}>
               Update Password
             </Button>
 
@@ -325,7 +176,7 @@ export default function SettingsPage() {
                   <input
                     type="checkbox"
                     checked={twoFactorEnabled}
-                    onChange={(e) => handleTwoFactorToggle(e.target.checked)}
+                    onChange={(e) => setTwoFactorEnabled(e.target.checked)}
                     className="sr-only peer"
                   />
                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
@@ -355,7 +206,7 @@ export default function SettingsPage() {
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={notifications.shipmentUpdates || false}
+                  checked={notifications.shipmentUpdates}
                   onChange={() => handleNotificationToggle('shipmentUpdates')}
                   className="sr-only peer"
                 />
@@ -373,8 +224,8 @@ export default function SettingsPage() {
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={notifications.emailNotifications || false}
-                  onChange={() => handleNotificationToggle('emailNotifications')}
+                  checked={notifications.deliveryNotifications}
+                  onChange={() => handleNotificationToggle('deliveryNotifications')}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
@@ -391,8 +242,8 @@ export default function SettingsPage() {
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={notifications.invoiceAlerts || false}
-                  onChange={() => handleNotificationToggle('invoiceAlerts')}
+                  checked={notifications.invoiceBilling}
+                  onChange={() => handleNotificationToggle('invoiceBilling')}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
@@ -409,8 +260,8 @@ export default function SettingsPage() {
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={notifications.newsletter || false}
-                  onChange={() => handleNotificationToggle('newsletter')}
+                  checked={notifications.marketing}
+                  onChange={() => handleNotificationToggle('marketing')}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
@@ -427,8 +278,8 @@ export default function SettingsPage() {
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={notifications.systemUpdates || false}
-                  onChange={() => handleNotificationToggle('systemUpdates')}
+                  checked={notifications.systemAnnouncements}
+                  onChange={() => handleNotificationToggle('systemAnnouncements')}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
@@ -457,6 +308,8 @@ export default function SettingsPage() {
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white"
               >
                 <option value="English">English</option>
+                <option value="Spanish">Spanish</option>
+                <option value="French">French</option>
               </select>
             </div>
 
@@ -469,8 +322,9 @@ export default function SettingsPage() {
                 onChange={(e) => setPreferences({ ...preferences, timezone: e.target.value })}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white"
               >
-                <option value="Asia/Bangkok">Indochina Time (ICT) - UTC+7</option>
-                <option value="Asia/Kolkata">India Standard Time (IST) - UTC+5:30</option>
+                <option value="UTC">UTC</option>
+                <option value="EST">Eastern Time</option>
+                <option value="PST">Pacific Time</option>
               </select>
             </div>
 
@@ -499,6 +353,8 @@ export default function SettingsPage() {
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white"
               >
                 <option value="USD">USD - US Dollar</option>
+                <option value="EUR">EUR - Euro</option>
+                <option value="GBP">GBP - British Pound</option>
               </select>
             </div>
           </div>
@@ -584,7 +440,7 @@ export default function SettingsPage() {
 
         {/* Save Button */}
         <div className="flex justify-end">
-          <Button variant="primary" onClick={handleSaveSettings} loading={saving} className="px-8">
+          <Button variant="primary" onClick={handleSaveSettings} className="px-8">
             Save All Settings
           </Button>
         </div>

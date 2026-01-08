@@ -273,9 +273,9 @@ exports.updateSystemPreferences = asyncHandler(async (req, res, next) => {
   // Update system preferences
   user.systemPreferences = {
     language: language || user.systemPreferences?.language || 'English',
-    timezone: timezone || user.systemPreferences?.timezone || 'Asia/Phnom_Penh (UTC+7:00)',
+    timezone: timezone || user.systemPreferences?.timezone || 'Asia/Bangkok',
     dateFormat: dateFormat || user.systemPreferences?.dateFormat || 'DD/MM/YYYY',
-    currency: currency || user.systemPreferences?.currency || 'USD ($)',
+    currency: currency || user.systemPreferences?.currency || 'USD',
     updatedAt: new Date()
   };
 
@@ -295,9 +295,9 @@ exports.getSystemPreferences = asyncHandler(async (req, res, next) => {
   new ApiResponse(200, {
     systemPreferences: user.systemPreferences || {
       language: 'English',
-      timezone: 'Asia/Phnom_Penh (UTC+7:00)',
+      timezone: 'Asia/Bangkok',
       dateFormat: 'DD/MM/YYYY',
-      currency: 'USD ($)'
+      currency: 'USD'
     }
   }, 'System preferences retrieved successfully').send(res);
 });
@@ -353,4 +353,167 @@ exports.exportData = asyncHandler(async (req, res, next) => {
   };
 
   new ApiResponse(200, exportData, 'Data exported successfully').send(res);
+});
+
+// Download user data (for regular users - their own data only)
+exports.downloadUserData = asyncHandler(async (req, res, next) => {
+  const user = await User.findById(req.user._id).populate('role').select('-password');
+
+  if (!user) {
+    return next(new ApiError('User not found', 404));
+  }
+
+  const Shipment = require('../models/Shipment');
+
+  // Build query for user's shipments
+  const shipmentQuery = {};
+  if (user.userType === 'client' && user.clientId) {
+    shipmentQuery.client = user.clientId;
+  }
+
+  const shipments = user.userType === 'client' ? await Shipment.find(shipmentQuery) : [];
+
+  const userData = {
+    exportDate: new Date().toISOString(),
+    user: {
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      userType: user.userType,
+      role: user.role.displayName,
+      createdAt: user.createdAt,
+      notificationPreferences: user.notificationPreferences,
+      systemPreferences: user.systemPreferences
+    },
+    shipments: shipments.length,
+    shipmentsData: shipments
+  };
+
+  new ApiResponse(200, userData, 'User data exported successfully').send(res);
+});
+
+// Update system preferences (for all users - their own preferences)
+exports.updateUserSystemPreferences = asyncHandler(async (req, res, next) => {
+  const { language, timezone, dateFormat, currency } = req.body;
+
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    return next(new ApiError('User not found', 404));
+  }
+
+  // Update system preferences
+  user.systemPreferences = {
+    language: language || user.systemPreferences?.language || 'English',
+    timezone: timezone || user.systemPreferences?.timezone || 'Asia/Bangkok',
+    dateFormat: dateFormat || user.systemPreferences?.dateFormat || 'DD/MM/YYYY',
+    currency: currency || user.systemPreferences?.currency || 'USD',
+    updatedAt: new Date()
+  };
+
+  await user.save();
+
+  new ApiResponse(200, { systemPreferences: user.systemPreferences }, 'Preferences updated successfully').send(res);
+});
+
+// Get user system preferences
+exports.getUserSystemPreferences = asyncHandler(async (req, res, next) => {
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    return next(new ApiError('User not found', 404));
+  }
+
+  new ApiResponse(200, {
+    systemPreferences: user.systemPreferences || {
+      language: 'English',
+      timezone: 'Asia/Bangkok',
+      dateFormat: 'DD/MM/YYYY',
+      currency: 'USD'
+    }
+  }, 'Preferences retrieved successfully').send(res);
+});
+
+// Toggle Two-Factor Authentication
+exports.toggleTwoFactor = asyncHandler(async (req, res, next) => {
+  const { enabled } = req.body;
+
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    return next(new ApiError('User not found', 404));
+  }
+
+  user.twoFactorEnabled = enabled;
+
+  // If enabling 2FA, generate a secret (simplified for now)
+  if (enabled && !user.twoFactorSecret) {
+    const crypto = require('crypto');
+    user.twoFactorSecret = crypto.randomBytes(20).toString('hex');
+  }
+
+  await user.save();
+
+  new ApiResponse(200, { twoFactorEnabled: user.twoFactorEnabled }, `Two-factor authentication ${enabled ? 'enabled' : 'disabled'} successfully`).send(res);
+});
+
+// Deactivate account
+exports.deactivateAccount = asyncHandler(async (req, res, next) => {
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    return next(new ApiError('User not found', 404));
+  }
+
+  user.status = 'inactive';
+  await user.save();
+
+  new ApiResponse(200, {}, 'Account deactivated successfully').send(res);
+});
+
+// Delete account
+exports.deleteAccount = asyncHandler(async (req, res, next) => {
+  const { password } = req.body;
+
+  if (!password) {
+    return next(new ApiError('Please provide your password to confirm deletion', 400));
+  }
+
+  const user = await User.findById(req.user._id).select('+password');
+
+  if (!user) {
+    return next(new ApiError('User not found', 404));
+  }
+
+  // Verify password
+  const isPasswordCorrect = await user.comparePassword(password);
+  if (!isPasswordCorrect) {
+    return next(new ApiError('Incorrect password', 401));
+  }
+
+  // Mark as deleted instead of actual deletion (soft delete)
+  user.status = 'suspended';
+  user.email = `deleted_${Date.now()}_${user.email}`; // Prevent email conflicts
+  await user.save();
+
+  new ApiResponse(200, {}, 'Account deleted successfully').send(res);
+});
+
+// Get activity log
+exports.getActivityLog = asyncHandler(async (req, res, next) => {
+  const user = await User.findById(req.user._id).select('lastLogin lastLoginIP createdAt updatedAt');
+
+  if (!user) {
+    return next(new ApiError('User not found', 404));
+  }
+
+  const activityLog = {
+    lastLogin: user.lastLogin,
+    lastLoginIP: user.lastLoginIP,
+    accountCreated: user.createdAt,
+    lastUpdated: user.updatedAt
+  };
+
+  new ApiResponse(200, { activityLog }, 'Activity log retrieved successfully').send(res);
 });

@@ -244,7 +244,7 @@ export default function ProfilePage() {
         </div>
       }
     >
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="space-y-6">
         {/* Profile Picture */}
         <div className="bg-white rounded-2xl p-6 border border-gray-200">
           <h3 className="text-lg font-bold text-gray-900 mb-4">Profile Picture</h3>

@@ -244,20 +244,20 @@ exports.getShipmentStats = asyncHandler(async (req, res) => {
     ...query,
     status: 'delivered',
   });
-  const delayedShipments = await Shipment.countDocuments({
+  const pendingShipments = await Shipment.countDocuments({
     ...query,
-    status: 'delayed',
+    status: 'pending',
   });
 
   const stats = {
     total: totalShipments,
     active: activeShipments,
     delivered: deliveredShipments,
-    delayed: delayedShipments,
+    delayed: pendingShipments, // Frontend expects 'delayed' key but displays as 'Pending'
   };
 
   res.json(
-    new ApiResponse(200, 'Shipment stats fetched successfully', { stats })
+    new ApiResponse(200, { stats }, 'Shipment stats fetched successfully')
   );
 });
 
