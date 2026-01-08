@@ -1,0 +1,40 @@
+name: Update package-lock (regenerate on Linux)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies (regenerate lockfile)
+        run: npm install
+
+      - name: Create branch and commit package-lock.json if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b update/package-lock || git checkout update/package-lock
+          git add package-lock.json
+          git commit -m "chore: regenerate package-lock on ubuntu for CI (turbo binaries)" || echo "No changes to commit"
+          git push --set-upstream origin HEAD || echo "No changes to push"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: regenerate package-lock on ubuntu for CI (turbo binaries)"
+          branch: update/package-lock
+          title: "chore: regenerate package-lock on ubuntu for CI (turbo binaries)"
+          body: |
+            This PR updates package-lock.json with Linux platform entries so CI (`npm ci`) succeeds on Vercel.
