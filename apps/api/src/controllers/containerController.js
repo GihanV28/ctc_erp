@@ -25,6 +25,7 @@ exports.getAllContainers = asyncHandler(async (req, res) => {
   // Execute query with pagination
   const skip = (page - 1) * limit;
   const containers = await Container.find(query)
+    .populate('currentShipment', 'shipmentId origin destination')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(parseInt(limit));
@@ -48,10 +49,11 @@ exports.getAllContainers = asyncHandler(async (req, res) => {
  * @access  Private (containers:read)
  */
 exports.getContainer = asyncHandler(async (req, res) => {
-  const container = await Container.findById(req.params.id);
+  const container = await Container.findById(req.params.id)
+    .populate('currentShipment', 'shipmentId origin destination status');
 
   if (!container) {
-    throw new ApiError(404, 'Container not found');
+    throw new ApiError('Container not found', 404);
   }
 
   new ApiResponse(200, { container }, 'Container fetched successfully').send(res);
@@ -75,7 +77,7 @@ exports.createContainer = asyncHandler(async (req, res) => {
   // Check if container number already exists
   const existingContainer = await Container.findOne({ containerNumber });
   if (existingContainer) {
-    throw new ApiError(400, 'Container with this number already exists');
+    throw new ApiError('Container with this number already exists', 400);
   }
 
   const container = await Container.create({
@@ -100,7 +102,7 @@ exports.updateContainer = asyncHandler(async (req, res) => {
   const container = await Container.findById(req.params.id);
 
   if (!container) {
-    throw new ApiError(404, 'Container not found');
+    throw new ApiError('Container not found', 404);
   }
 
   // Check if container number is being changed and if it's already in use
@@ -112,7 +114,7 @@ exports.updateContainer = asyncHandler(async (req, res) => {
       containerNumber: req.body.containerNumber,
     });
     if (existingContainer) {
-      throw new ApiError(400, 'Container number already in use');
+      throw new ApiError('Container number already in use', 400);
     }
   }
 
@@ -149,12 +151,12 @@ exports.deleteContainer = asyncHandler(async (req, res) => {
   const container = await Container.findById(req.params.id);
 
   if (!container) {
-    throw new ApiError(404, 'Container not found');
+    throw new ApiError('Container not found', 404);
   }
 
   // Check if container is currently in use
   if (container.status === 'in_use') {
-    throw new ApiError(400, 'Cannot delete container that is currently in use');
+    throw new ApiError('Cannot delete container that is currently in use', 400);
   }
 
   // Check if container is assigned to any shipments
@@ -164,8 +166,8 @@ exports.deleteContainer = asyncHandler(async (req, res) => {
   });
   if (shipmentsCount > 0) {
     throw new ApiError(
-      400,
-      `Cannot delete container. ${shipmentsCount} shipment(s) are associated with this container`
+      `Cannot delete container. ${shipmentsCount} shipment(s) are associated with this container`,
+      400
     );
   }
 
@@ -186,6 +188,70 @@ exports.getAvailableContainers = asyncHandler(async (req, res) => {
   if (containerType) query.type = containerType;
 
   const containers = await Container.find(query).sort({ containerNumber: 1 });
+
+  new ApiResponse(200, { containers }, 'Available containers fetched successfully').send(res);
+});
+
+/**
+ * @desc    Get container statistics
+ * @route   GET /api/containers/stats
+ * @access  Private (containers:read)
+ */
+exports.getContainerStats = asyncHandler(async (req, res) => {
+  const total = await Container.countDocuments();
+  const available = await Container.countDocuments({ status: 'available' });
+  const inUse = await Container.countDocuments({ status: 'in_use' });
+  const maintenance = await Container.countDocuments({ status: 'maintenance' });
+  const damaged = await Container.countDocuments({ status: 'damaged' });
+
+  // Container type breakdown
+  const typeBreakdown = await Container.aggregate([
+    {
+      $group: {
+        _id: '$type',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Condition breakdown
+  const conditionBreakdown = await Container.aggregate([
+    {
+      $group: {
+        _id: '$condition',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  new ApiResponse(200, {
+    stats: {
+      total,
+      available,
+      inUse,
+      maintenance,
+      damaged,
+      typeBreakdown: typeBreakdown.reduce((acc, item) => {
+        acc[item._id] = item.count;
+        return acc;
+      }, {}),
+      conditionBreakdown: conditionBreakdown.reduce((acc, item) => {
+        acc[item._id] = item.count;
+        return acc;
+      }, {})
+    }
+  }, 'Container statistics fetched successfully').send(res);
+});
+
+/**
+ * @desc    Get available containers for dropdown
+ * @route   GET /api/containers/available/list
+ * @access  Private (shipments:write)
+ */
+exports.getAvailableContainers = asyncHandler(async (req, res) => {
+  const containers = await Container.find({ status: 'available' })
+    .select('_id containerId containerNumber type condition location')
+    .sort({ containerNumber: 1 });
 
   new ApiResponse(200, { containers }, 'Available containers fetched successfully').send(res);
 });

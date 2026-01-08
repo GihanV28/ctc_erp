@@ -79,8 +79,8 @@ export default function SupportPage() {
 
   return (
     <PortalLayout
-      title="Support Center"
-      subtitle="Get help with your shipments and account"
+      title="Inquiry Center"
+      subtitle="Submit inquiries for export import orders and get help with your shipments"
       headerAction={
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium text-gray-700">{mockUser.name}</span>
@@ -101,7 +101,7 @@ export default function SupportPage() {
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900 mb-1">Live Chat</h3>
-                <p className="text-sm text-gray-600 mb-2">Chat with our support team</p>
+                <p className="text-sm text-gray-600 mb-2">Chat with our inquiry team</p>
                 <div className="flex items-center gap-1">
                   <div className="w-2 h-2 rounded-full bg-green-500"></div>
                   <span className="text-xs text-green-600 font-medium">Available now</span>
@@ -255,7 +255,7 @@ export default function SupportPage() {
 
         {/* Support Tickets */}
         <div className="bg-white rounded-2xl p-6 border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">My Support Tickets</h3>
+          <h3 className="text-lg font-bold text-gray-900 mb-6">My Inquiry Tickets</h3>
 
           <div className="space-y-4">
             {supportTickets.map((ticket) => (

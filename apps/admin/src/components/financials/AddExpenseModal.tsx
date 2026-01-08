@@ -1,29 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, Check, DollarSign, Calendar, FileText, Upload } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Check, DollarSign, Plus } from 'lucide-react';
 import type { Expense, ExpenseFormData, ExpenseCategory } from './types';
+import { financialService, type ExpenseCategory as ExpenseCategoryType } from '@/services/financialService';
 
 interface AddExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (expense: Expense) => void;
 }
-
-const expenseCategories: { value: ExpenseCategory; label: string }[] = [
-  { value: 'fuel', label: 'Fuel & Energy' },
-  { value: 'port_fees', label: 'Port Fees' },
-  { value: 'customs_duties', label: 'Customs & Duties' },
-  { value: 'handling_charges', label: 'Handling Charges' },
-  { value: 'container_maintenance', label: 'Container Maintenance' },
-  { value: 'insurance', label: 'Insurance' },
-  { value: 'staff_salaries', label: 'Staff Salaries' },
-  { value: 'office_expenses', label: 'Office Expenses' },
-  { value: 'vehicle_maintenance', label: 'Vehicle Maintenance' },
-  { value: 'marketing', label: 'Marketing' },
-  { value: 'technology', label: 'Technology & Software' },
-  { value: 'other', label: 'Other Expenses' }
-];
 
 export default function AddExpenseModal({ isOpen, onClose, onSave }: AddExpenseModalProps) {
   const [formData, setFormData] = useState<ExpenseFormData>({
@@ -43,8 +29,52 @@ export default function AddExpenseModal({ isOpen, onClose, onSave }: AddExpenseM
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [categories, setCategories] = useState<ExpenseCategoryType[]>([]);
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [creatingCategory, setCreatingCategory] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Load categories on mount
+  useEffect(() => {
+    if (isOpen) {
+      loadCategories();
+    }
+  }, [isOpen]);
+
+  const loadCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      const data = await financialService.getExpenseCategories();
+      setCategories(data);
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  const handleAddNewCategory = async () => {
+    if (!newCategoryName.trim()) {
+      alert('Please enter a category name');
+      return;
+    }
+
+    try {
+      setCreatingCategory(true);
+      const newCategory = await financialService.createExpenseCategory(newCategoryName.trim());
+      setCategories([...categories, newCategory]);
+      setFormData(prev => ({ ...prev, category: newCategory.value as ExpenseCategory }));
+      setNewCategoryName('');
+      setShowAddCategory(false);
+    } catch (error: any) {
+      alert(error.message || 'Failed to create category');
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
@@ -57,41 +87,46 @@ export default function AddExpenseModal({ isOpen, onClose, onSave }: AddExpenseM
       return;
     }
 
-    const newExpense: Expense = {
-      _id: Date.now().toString(),
-      category: formData.category as ExpenseCategory,
-      description: formData.description,
-      amount: parseFloat(formData.amount),
-      currency: formData.currency,
-      date: new Date(formData.date).toISOString(),
-      shipmentId: formData.shipmentId || undefined,
-      containerId: formData.containerId || undefined,
-      supplierId: formData.supplierId || undefined,
-      paymentMethod: formData.paymentMethod,
-      invoiceNumber: formData.invoiceNumber || undefined,
-      status: formData.status,
-      notes: formData.notes || undefined,
-      createdBy: 'admin',
-      createdAt: new Date().toISOString()
-    };
+    try {
+      const expenseData = {
+        category: formData.category,
+        description: formData.description,
+        amount: parseFloat(formData.amount),
+        currency: formData.currency,
+        date: formData.date,
+        shipmentId: formData.shipmentId || undefined,
+        containerId: formData.containerId || undefined,
+        supplierId: formData.supplierId || undefined,
+        paymentMethod: formData.paymentMethod,
+        invoiceNumber: formData.invoiceNumber || undefined,
+        status: formData.status,
+        notes: formData.notes || undefined,
+      };
 
-    onSave(newExpense);
-    setFormData({
-      category: '',
-      description: '',
-      amount: '',
-      currency: 'USD',
-      date: new Date().toISOString().split('T')[0],
-      shipmentId: '',
-      containerId: '',
-      supplierId: '',
-      paymentMethod: 'Bank Transfer',
-      invoiceNumber: '',
-      status: 'pending',
-      attachments: [],
-      notes: ''
-    });
-    setErrors({});
+      const createdExpense = await financialService.createExpense(expenseData);
+      onSave(createdExpense);
+
+      // Reset form
+      setFormData({
+        category: '',
+        description: '',
+        amount: '',
+        currency: 'USD',
+        date: new Date().toISOString().split('T')[0],
+        shipmentId: '',
+        containerId: '',
+        supplierId: '',
+        paymentMethod: 'Bank Transfer',
+        invoiceNumber: '',
+        status: 'pending',
+        attachments: [],
+        notes: ''
+      });
+      setErrors({});
+      onClose();
+    } catch (error: any) {
+      alert(error.message || 'Failed to create expense');
+    }
   };
 
   if (!isOpen) return null;
@@ -122,18 +157,68 @@ export default function AddExpenseModal({ isOpen, onClose, onSave }: AddExpenseM
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Category <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as ExpenseCategory }))}
-                  className={`w-full px-4 py-2.5 rounded-lg border ${
-                    errors.category ? 'border-red-300' : 'border-gray-200'
-                  } focus:outline-none focus:ring-2 focus:ring-purple-500`}
-                >
-                  <option value="">Select category</option>
-                  {expenseCategories.map(cat => (
-                    <option key={cat.value} value={cat.value}>{cat.label}</option>
-                  ))}
-                </select>
+                {!showAddCategory ? (
+                  <div className="relative">
+                    <select
+                      value={formData.category}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '__ADD_NEW__') {
+                          setShowAddCategory(true);
+                        } else {
+                          setFormData(prev => ({ ...prev, category: value as ExpenseCategory }));
+                        }
+                      }}
+                      className={`w-full px-4 py-2.5 rounded-lg border ${
+                        errors.category ? 'border-red-300' : 'border-gray-200'
+                      } focus:outline-none focus:ring-2 focus:ring-purple-500`}
+                      disabled={loadingCategories}
+                    >
+                      <option value="">
+                        {loadingCategories ? 'Loading categories...' : 'Select category'}
+                      </option>
+                      {categories.map(cat => (
+                        <option key={cat._id} value={cat.value}>{cat.label}</option>
+                      ))}
+                      <option value="__ADD_NEW__" className="font-semibold text-purple-600">
+                        + Add New Category
+                      </option>
+                    </select>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      placeholder="Enter category name"
+                      className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      disabled={creatingCategory}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddNewCategory}
+                      disabled={creatingCategory}
+                      className="px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                    >
+                      {creatingCategory ? (
+                        <span>...</span>
+                      ) : (
+                        <Check size={18} />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddCategory(false);
+                        setNewCategoryName('');
+                      }}
+                      className="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                )}
                 {errors.category && <p className="mt-1 text-xs text-red-500">{errors.category}</p>}
               </div>
 

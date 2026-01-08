@@ -70,7 +70,7 @@ exports.getTicket = asyncHandler(async (req, res) => {
     .populate('messages.sentBy', 'firstName lastName email');
 
   if (!ticket) {
-    throw new ApiError(404, 'Support ticket not found');
+    throw new ApiError('Support ticket not found', 404);
   }
 
   // Check if user can access this ticket
@@ -79,7 +79,7 @@ exports.getTicket = asyncHandler(async (req, res) => {
     !(await req.user.hasPermission('support:read'))
   ) {
     if (ticket.createdBy._id.toString() !== req.user._id.toString()) {
-      throw new ApiError(403, 'You can only view your own support tickets');
+      throw new ApiError('You can only view your own support tickets', 403);
     }
   }
 
@@ -101,7 +101,7 @@ exports.createTicket = asyncHandler(async (req, res) => {
     const Shipment = require('../models/Shipment');
     const shipmentDoc = await Shipment.findById(shipment);
     if (!shipmentDoc) {
-      throw new ApiError(404, 'Shipment not found');
+      throw new ApiError('Shipment not found', 404);
     }
   }
 
@@ -131,7 +131,7 @@ exports.updateTicket = asyncHandler(async (req, res) => {
   const ticket = await SupportTicket.findById(req.params.id);
 
   if (!ticket) {
-    throw new ApiError(404, 'Support ticket not found');
+    throw new ApiError('Support ticket not found', 404);
   }
 
   const { subject, description, category, priority, status, assignedTo } =
@@ -170,7 +170,7 @@ exports.addMessage = asyncHandler(async (req, res) => {
   const ticket = await SupportTicket.findById(req.params.id);
 
   if (!ticket) {
-    throw new ApiError(404, 'Support ticket not found');
+    throw new ApiError('Support ticket not found', 404);
   }
 
   // Check if user can access this ticket
@@ -178,12 +178,12 @@ exports.addMessage = asyncHandler(async (req, res) => {
     req.user.userType === 'client' &&
     ticket.createdBy.toString() !== req.user._id.toString()
   ) {
-    throw new ApiError(403, 'You can only add messages to your own tickets');
+    throw new ApiError('You can only add messages to your own tickets', 403);
   }
 
   // Clients cannot send internal messages
   if (isInternal && req.user.userType === 'client') {
-    throw new ApiError(403, 'You cannot send internal messages');
+    throw new ApiError('You cannot send internal messages', 403);
   }
 
   ticket.messages.push({
@@ -212,11 +212,11 @@ exports.closeTicket = asyncHandler(async (req, res) => {
   const ticket = await SupportTicket.findById(req.params.id);
 
   if (!ticket) {
-    throw new ApiError(404, 'Support ticket not found');
+    throw new ApiError('Support ticket not found', 404);
   }
 
   if (ticket.status === 'closed') {
-    throw new ApiError(400, 'Ticket is already closed');
+    throw new ApiError('Ticket is already closed', 400);
   }
 
   ticket.status = 'closed';

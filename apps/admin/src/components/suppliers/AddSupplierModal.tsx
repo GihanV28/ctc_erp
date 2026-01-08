@@ -23,12 +23,17 @@ import {
   Mail,
   Phone,
 } from 'lucide-react';
-import { ServiceType, SupplierStatus } from '@/types';
+import { Supplier } from '@/services/supplierService';
+
+type ServiceType = 'ocean_freight' | 'air_sea' | 'container' | 'port_ops' | 'warehouse' | 'customs' | 'ground' | 'express';
+type SupplierStatus = 'active' | 'inactive' | 'pending';
 
 interface AddSupplierModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: NewSupplierFormData) => void;
+  editingSupplier?: Supplier | null;
+  mode?: 'add' | 'edit' | 'view';
 }
 
 interface ContractData {
@@ -42,9 +47,9 @@ interface ContractData {
 
 interface NewSupplierFormData {
   // Basic
-  companyName: string;
+  name: string;
   tradingName: string;
-  serviceType: ServiceType;
+  serviceTypes: ServiceType[];
   status: SupplierStatus;
   rating: number;
   paymentTerms: string;
@@ -52,25 +57,31 @@ interface NewSupplierFormData {
   notes: string;
 
   // Contact
-  firstName: string;
-  lastName: string;
-  position: string;
-  email: string;
-  phone: string;
-  street: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
+  contactPerson: {
+    firstName: string;
+    lastName: string;
+    position: string;
+    email: string;
+    phone: string;
+  };
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+  };
 
   // Contracts
   contracts: ContractData[];
 
   // Banking
-  bankName: string;
-  swiftCode: string;
-  accountName: string;
-  accountNumber: string;
+  banking: {
+    bankName: string;
+    swiftCode: string;
+    accountName: string;
+    accountNumber: string;
+  };
 }
 
 type TabType = 'basic' | 'contact' | 'contracts' | 'banking';
@@ -90,50 +101,138 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
+  editingSupplier,
+  mode = 'add',
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('basic');
   const [currentTag, setCurrentTag] = useState('');
 
-  const [formData, setFormData] = useState<NewSupplierFormData>({
-    companyName: '',
-    tradingName: '',
-    serviceType: 'ocean_freight',
-    status: 'active',
-    rating: 0,
-    paymentTerms: 'net_30',
-    tags: [],
-    notes: '',
-    firstName: '',
-    lastName: '',
-    position: '',
-    email: '',
-    phone: '',
-    street: '',
-    city: '',
-    state: '',
-    postalCode: '',
-    country: '',
-    contracts: [],
-    bankName: '',
-    swiftCode: '',
-    accountName: '',
-    accountNumber: '',
-  });
+  const getInitialFormData = (): NewSupplierFormData => {
+    if (editingSupplier) {
+      return {
+        name: editingSupplier.name,
+        tradingName: editingSupplier.tradingName || '',
+        serviceTypes: editingSupplier.serviceTypes,
+        status: editingSupplier.status,
+        rating: editingSupplier.rating || 0,
+        paymentTerms: editingSupplier.paymentTerms || 'net_30',
+        tags: editingSupplier.tags || [],
+        notes: editingSupplier.notes || '',
+        contactPerson: {
+          firstName: editingSupplier.contactPerson.firstName,
+          lastName: editingSupplier.contactPerson.lastName,
+          position: editingSupplier.contactPerson.position || '',
+          email: editingSupplier.contactPerson.email,
+          phone: editingSupplier.contactPerson.phone,
+        },
+        address: {
+          street: editingSupplier.address.street || '',
+          city: editingSupplier.address.city,
+          state: editingSupplier.address.state || '',
+          postalCode: editingSupplier.address.postalCode || '',
+          country: editingSupplier.address.country,
+        },
+        contracts: editingSupplier.contracts?.map((c: any) => ({
+          id: c._id || `contract-${Date.now()}`,
+          contractId: c.contractId,
+          value: c.value,
+          startDate: c.startDate ? new Date(c.startDate).toISOString().split('T')[0] : '',
+          endDate: c.endDate ? new Date(c.endDate).toISOString().split('T')[0] : '',
+          status: c.status,
+        })) || [],
+        banking: {
+          bankName: editingSupplier.banking?.bankName || '',
+          swiftCode: editingSupplier.banking?.swiftCode || '',
+          accountName: editingSupplier.banking?.accountName || '',
+          accountNumber: editingSupplier.banking?.accountNumber || '',
+        },
+      };
+    }
+    return {
+      name: '',
+      tradingName: '',
+      serviceTypes: ['ocean_freight'],
+      status: 'pending',
+      rating: 0,
+      paymentTerms: 'net_30',
+      tags: [],
+      notes: '',
+      contactPerson: {
+        firstName: '',
+        lastName: '',
+        position: '',
+        email: '',
+        phone: '',
+      },
+      address: {
+        street: '',
+        city: '',
+        state: '',
+        postalCode: '',
+        country: '',
+      },
+      contracts: [],
+      banking: {
+        bankName: '',
+        swiftCode: '',
+        accountName: '',
+        accountNumber: '',
+      },
+    };
+  };
+
+  const [formData, setFormData] = useState<NewSupplierFormData>(getInitialFormData());
 
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
   const [loading, setLoading] = useState(false);
 
+  // Reset form when modal opens with editing supplier
+  React.useEffect(() => {
+    if (isOpen) {
+      setFormData(getInitialFormData());
+      setActiveTab('basic');
+      setErrors({});
+    }
+  }, [isOpen, editingSupplier]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+
+    // Handle nested fields
+    if (name.startsWith('contactPerson.')) {
+      const field = name.split('.')[1];
+      setFormData({
+        ...formData,
+        contactPerson: { ...formData.contactPerson, [field]: value },
+      });
+    } else if (name.startsWith('address.')) {
+      const field = name.split('.')[1];
+      setFormData({
+        ...formData,
+        address: { ...formData.address, [field]: value },
+      });
+    } else if (name.startsWith('banking.')) {
+      const field = name.split('.')[1];
+      setFormData({
+        ...formData,
+        banking: { ...formData.banking, [field]: value },
+      });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
 
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
   };
 
-  const handleServiceTypeChange = (type: ServiceType) => {
-    setFormData({ ...formData, serviceType: type });
+  const handleServiceTypeToggle = (type: ServiceType) => {
+    const currentTypes = formData.serviceTypes;
+    if (currentTypes.includes(type)) {
+      setFormData({ ...formData, serviceTypes: currentTypes.filter(t => t !== type) });
+    } else {
+      setFormData({ ...formData, serviceTypes: [...currentTypes, type] });
+    }
   };
 
   const handleStatusChange = (status: SupplierStatus) => {
@@ -183,17 +282,18 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
   const validate = (): boolean => {
     const newErrors: Partial<Record<string, string>> = {};
 
-    if (!formData.companyName.trim()) newErrors.companyName = 'Company name is required';
-    if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
-    if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+    if (!formData.name.trim()) newErrors.name = 'Company name is required';
+    if (formData.serviceTypes.length === 0) newErrors.serviceTypes = 'At least one service type is required';
+    if (!formData.contactPerson.firstName.trim()) newErrors['contactPerson.firstName'] = 'First name is required';
+    if (!formData.contactPerson.lastName.trim()) newErrors['contactPerson.lastName'] = 'Last name is required';
+    if (!formData.contactPerson.email.trim()) {
+      newErrors['contactPerson.email'] = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactPerson.email)) {
+      newErrors['contactPerson.email'] = 'Please enter a valid email address';
     }
-    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
-    if (!formData.city.trim()) newErrors.city = 'City is required';
-    if (!formData.country.trim()) newErrors.country = 'Country is required';
+    if (!formData.contactPerson.phone.trim()) newErrors['contactPerson.phone'] = 'Phone number is required';
+    if (!formData.address.city.trim()) newErrors['address.city'] = 'City is required';
+    if (!formData.address.country.trim()) newErrors['address.country'] = 'Country is required';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -204,9 +304,9 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
 
     if (!validate()) {
       // Switch to the tab with errors
-      if (errors.companyName || errors.serviceType) {
+      if (errors.name || errors.serviceTypes) {
         setActiveTab('basic');
-      } else if (errors.firstName || errors.lastName || errors.email || errors.phone || errors.city || errors.country) {
+      } else if (Object.keys(errors).some(k => k.startsWith('contactPerson') || k.startsWith('address'))) {
         setActiveTab('contact');
       }
       return;
@@ -214,38 +314,14 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
 
     setLoading(true);
 
-    setTimeout(() => {
-      onSubmit(formData);
-      setLoading(false);
+    try {
+      await onSubmit(formData);
       onClose();
-      // Reset form
-      setFormData({
-        companyName: '',
-        tradingName: '',
-        serviceType: 'ocean_freight',
-        status: 'active',
-        rating: 0,
-        paymentTerms: 'net_30',
-        tags: [],
-        notes: '',
-        firstName: '',
-        lastName: '',
-        position: '',
-        email: '',
-        phone: '',
-        street: '',
-        city: '',
-        state: '',
-        postalCode: '',
-        country: '',
-        contracts: [],
-        bankName: '',
-        swiftCode: '',
-        accountName: '',
-        accountNumber: '',
-      });
-      setActiveTab('basic');
-    }, 1000);
+    } catch (error) {
+      console.error('Submit error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStepNumber = () => {
@@ -257,8 +333,8 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Add New Supplier"
-      description="Enter supplier details"
+      title={mode === 'view' ? 'View Supplier Details' : mode === 'edit' ? 'Edit Supplier' : 'Add New Supplier'}
+      description={mode === 'view' ? 'Supplier information (read-only)' : mode === 'edit' ? 'Update supplier details' : 'Enter supplier details'}
       size="2xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -324,11 +400,12 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
               <div className="grid grid-cols-2 gap-4">
                 <Input
                   label="Company Name *"
-                  name="companyName"
+                  name="name"
                   placeholder="e.g., Maritime Shipping"
-                  value={formData.companyName}
+                  value={formData.name}
                   onChange={handleChange}
-                  error={errors.companyName}
+                  error={errors.name}
+                  disabled={mode === 'view'}
                 />
                 <Input
                   label="Trading Name"
@@ -336,25 +413,30 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                   placeholder="e.g., MSL"
                   value={formData.tradingName}
                   onChange={handleChange}
+                  disabled={mode === 'view'}
                 />
               </div>
 
-              {/* Service Type */}
+              {/* Service Types */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Service Type <span className="text-red-500">*</span>
+                  Service Types <span className="text-red-500">*</span> (Select one or more)
                 </label>
+                {errors.serviceTypes && (
+                  <p className="text-sm text-red-600 mb-2">{errors.serviceTypes}</p>
+                )}
                 <div className="grid grid-cols-4 gap-3">
                   {serviceTypeOptions.map((option) => (
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => handleServiceTypeChange(option.value)}
+                      onClick={() => handleServiceTypeToggle(option.value)}
+                      disabled={mode === 'view'}
                       className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
-                        formData.serviceType === option.value
+                        formData.serviceTypes.includes(option.value)
                           ? 'border-purple-500 bg-purple-50 text-purple-700'
                           : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                      }`}
+                      } ${mode === 'view' ? 'cursor-default opacity-75' : ''}`}
                     >
                       {option.icon}
                       <span className="text-xs font-medium">{option.label}</span>
@@ -374,11 +456,12 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                       key={status}
                       type="button"
                       onClick={() => handleStatusChange(status)}
+                      disabled={mode === 'view'}
                       className={`px-6 py-2.5 rounded-lg border-2 transition-all capitalize ${
                         formData.status === status
                           ? 'border-purple-500 bg-purple-50 text-purple-700 font-medium'
                           : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                      }`}
+                      } ${mode === 'view' ? 'cursor-default opacity-75' : ''}`}
                     >
                       {status}
                     </button>
@@ -397,6 +480,7 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                       key={star}
                       type="button"
                       onClick={() => handleRatingClick(star)}
+                      disabled={mode === 'view'}
                       className="transition-all"
                     >
                       <Star
@@ -421,6 +505,7 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                   name="paymentTerms"
                   value={formData.paymentTerms}
                   onChange={handleChange}
+                  disabled={mode === 'view'}
                   className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all"
                 >
                   <option value="net_30">Net 30</option>
@@ -443,12 +528,14 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                     value={currentTag}
                     onChange={(e) => setCurrentTag(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                    disabled={mode === 'view'}
                     className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all"
                   />
                   <button
                     type="button"
                     onClick={handleAddTag}
-                    className="px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    disabled={mode === 'view'}
+                    className="px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
                   >
                     <Plus className="h-5 w-5" />
                   </button>
@@ -464,6 +551,7 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                         <button
                           type="button"
                           onClick={() => handleRemoveTag(tag)}
+                          disabled={mode === 'view'}
                           className="hover:text-red-600"
                         >
                           ×
@@ -485,6 +573,7 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                   placeholder="Notes..."
                   value={formData.notes}
                   onChange={handleChange}
+                  disabled={mode === 'view'}
                   className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all resize-none"
                 />
               </div>
@@ -504,50 +593,55 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <Input
                     label="First Name *"
-                    name="firstName"
+                    name="contactPerson.firstName"
                     placeholder="John"
-                    value={formData.firstName}
+                    value={formData.contactPerson.firstName}
                     onChange={handleChange}
-                    error={errors.firstName}
+                    error={errors['contactPerson.firstName']}
+                    disabled={mode === 'view'}
                   />
                   <Input
                     label="Last Name *"
-                    name="lastName"
+                    name="contactPerson.lastName"
                     placeholder="Doe"
-                    value={formData.lastName}
+                    value={formData.contactPerson.lastName}
                     onChange={handleChange}
-                    error={errors.lastName}
+                    error={errors['contactPerson.lastName']}
+                    disabled={mode === 'view'}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <Input
                     label="Position"
-                    name="position"
+                    name="contactPerson.position"
                     placeholder="Account Manager"
-                    value={formData.position}
+                    value={formData.contactPerson.position}
                     onChange={handleChange}
+                    disabled={mode === 'view'}
                   />
                   <Input
                     label="Email *"
                     type="email"
-                    name="email"
+                    name="contactPerson.email"
                     placeholder="john@example.com"
                     leftIcon={<Mail className="h-4 w-4" />}
-                    value={formData.email}
+                    value={formData.contactPerson.email}
                     onChange={handleChange}
-                    error={errors.email}
+                    error={errors['contactPerson.email']}
+                    disabled={mode === 'view'}
                   />
                 </div>
                 <div className="mt-4">
                   <Input
                     label="Phone *"
                     type="tel"
-                    name="phone"
+                    name="contactPerson.phone"
                     placeholder="+1 555-0123"
                     leftIcon={<Phone className="h-4 w-4" />}
-                    value={formData.phone}
+                    value={formData.contactPerson.phone}
                     onChange={handleChange}
-                    error={errors.phone}
+                    error={errors['contactPerson.phone']}
+                    disabled={mode === 'view'}
                   />
                 </div>
               </div>
@@ -562,43 +656,48 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                 <div className="space-y-4">
                   <Input
                     label="Street"
-                    name="street"
+                    name="address.street"
                     placeholder="123 Main St"
-                    value={formData.street}
+                    value={formData.address.street}
                     onChange={handleChange}
+                    disabled={mode === 'view'}
                   />
                   <div className="grid grid-cols-2 gap-4">
                     <Input
                       label="City *"
-                      name="city"
+                      name="address.city"
                       placeholder="Miami"
-                      value={formData.city}
+                      value={formData.address.city}
                       onChange={handleChange}
-                      error={errors.city}
+                      error={errors['address.city']}
+                      disabled={mode === 'view'}
                     />
                     <Input
                       label="State"
-                      name="state"
+                      name="address.state"
                       placeholder="Florida"
-                      value={formData.state}
+                      value={formData.address.state}
                       onChange={handleChange}
+                      disabled={mode === 'view'}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <Input
                       label="Postal Code"
-                      name="postalCode"
+                      name="address.postalCode"
                       placeholder="33101"
-                      value={formData.postalCode}
+                      value={formData.address.postalCode}
                       onChange={handleChange}
+                      disabled={mode === 'view'}
                     />
                     <Input
                       label="Country *"
-                      name="country"
+                      name="address.country"
                       placeholder="USA"
-                      value={formData.country}
+                      value={formData.address.country}
                       onChange={handleChange}
-                      error={errors.country}
+                      error={errors['address.country']}
+                      disabled={mode === 'view'}
                     />
                   </div>
                 </div>
@@ -614,7 +713,8 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                 <button
                   type="button"
                   onClick={handleAddContract}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors"
+                  disabled={mode === 'view'}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors disabled:opacity-50"
                 >
                   <Plus className="h-4 w-4" />
                   Add Contract
@@ -634,7 +734,8 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                         <button
                           type="button"
                           onClick={() => handleRemoveContract(contract.id)}
-                          className="text-red-600 hover:text-red-700"
+                          disabled={mode === 'view'}
+                          className="text-red-600 hover:text-red-700 disabled:opacity-50"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -649,6 +750,7 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                             type="text"
                             value={contract.contractId}
                             onChange={(e) => handleContractChange(contract.id, 'contractId', e.target.value)}
+                            disabled={mode === 'view'}
                             className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all"
                           />
                         </div>
@@ -660,6 +762,7 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                             type="number"
                             value={contract.value}
                             onChange={(e) => handleContractChange(contract.id, 'value', Number(e.target.value))}
+                            disabled={mode === 'view'}
                             className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all"
                           />
                         </div>
@@ -674,6 +777,7 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                             type="date"
                             value={contract.startDate}
                             onChange={(e) => handleContractChange(contract.id, 'startDate', e.target.value)}
+                            disabled={mode === 'view'}
                             className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all"
                           />
                         </div>
@@ -685,6 +789,7 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                             type="date"
                             value={contract.endDate}
                             onChange={(e) => handleContractChange(contract.id, 'endDate', e.target.value)}
+                            disabled={mode === 'view'}
                             className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all"
                           />
                         </div>
@@ -697,6 +802,7 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                         <select
                           value={contract.status}
                           onChange={(e) => handleContractChange(contract.id, 'status', e.target.value)}
+                          disabled={mode === 'view'}
                           className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all"
                         >
                           <option value="pending">Pending</option>
@@ -726,34 +832,38 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                   <Input
                     label="Bank Name"
-                    name="bankName"
+                    name="banking.bankName"
                     placeholder="Bank of America"
-                    value={formData.bankName}
+                    value={formData.banking.bankName}
                     onChange={handleChange}
+                    disabled={mode === 'view'}
                   />
                   <Input
                     label="SWIFT Code"
-                    name="swiftCode"
+                    name="banking.swiftCode"
                     placeholder="BOFAUS3N"
-                    value={formData.swiftCode}
+                    value={formData.banking.swiftCode}
                     onChange={handleChange}
+                    disabled={mode === 'view'}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   <Input
                     label="Account Name"
-                    name="accountName"
+                    name="banking.accountName"
                     placeholder="Company name"
-                    value={formData.accountName}
+                    value={formData.banking.accountName}
                     onChange={handleChange}
+                    disabled={mode === 'view'}
                   />
                   <Input
                     label="Account Number"
-                    name="accountNumber"
+                    name="banking.accountNumber"
                     placeholder="1234567890"
-                    value={formData.accountNumber}
+                    value={formData.banking.accountNumber}
                     onChange={handleChange}
+                    disabled={mode === 'view'}
                   />
                 </div>
 
@@ -779,16 +889,18 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
               onClick={onClose}
               disabled={loading}
             >
-              Cancel
+              {mode === 'view' ? 'Close' : 'Cancel'}
             </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              loading={loading}
-              leftIcon={<Building2 className="h-4 w-4" />}
-            >
-              Add Supplier
-            </Button>
+            {mode !== 'view' && (
+              <Button
+                type="submit"
+                variant="primary"
+                loading={loading}
+                leftIcon={<Building2 className="h-4 w-4" />}
+              >
+                {mode === 'edit' ? 'Update Supplier' : 'Add Supplier'}
+              </Button>
+            )}
           </div>
         </div>
       </form>

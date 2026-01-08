@@ -28,10 +28,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (isAuthenticated()) {
           const currentUser = getCurrentUser();
           if (currentUser) {
+            // Validate userType - only client users allowed
+            if (currentUser.userType !== 'client') {
+              console.warn('Non-client user attempted to access client portal');
+              throw new Error('Invalid user type');
+            }
+
             setUser(currentUser);
             // Optionally fetch fresh user data
             try {
               const freshUser = await authApi.getMe();
+
+              // Re-validate fresh user data
+              if (freshUser.userType !== 'client') {
+                throw new Error('Invalid user type');
+              }
+
               setUser(freshUser);
               localStorage.setItem('user', JSON.stringify(freshUser));
             } catch (error) {
@@ -56,6 +68,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (credentials: LoginCredentials) => {
     try {
       const response = await authApi.login(credentials);
+
+      // Validate userType - only client users can access client portal
+      if (response.user.userType !== 'client') {
+        // Clear auth data
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        throw new Error('Access denied. This portal is for clients only. Please use the admin portal.');
+      }
+
       setUser(response.user);
       router.push('/dashboard');
     } catch (error) {

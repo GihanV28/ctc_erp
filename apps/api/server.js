@@ -12,11 +12,31 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ===== MIDDLEWARE =====
-app.use(helmet()); // Security headers
-app.use(cors()); // Enable CORS
+// Configure CORS to allow all origins in development
+app.use(cors({
+  origin: '*',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Configure Helmet with proper settings for serving static files
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginEmbedderPolicy: false
+}));
+
 app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 app.use(morgan('dev')); // HTTP request logger
+
+// Serve uploaded files with proper headers
+app.use('/uploads', express.static('uploads', {
+  setHeaders: (res) => {
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.set('Access-Control-Allow-Origin', '*');
+  }
+}));
 
 // ===== DATABASE CONNECTION =====
 connectDB();
@@ -36,6 +56,7 @@ app.get('/health', (req, res) => {
 
 // ===== API ROUTES =====
 app.use('/api/auth', require('./src/routes/authRoutes'));
+app.use('/api/profile', require('./src/routes/profileRoutes'));
 app.use('/api/users', require('./src/routes/userRoutes'));
 app.use('/api/roles', require('./src/routes/roleRoutes'));
 app.use('/api/clients', require('./src/routes/clientRoutes'));
@@ -45,6 +66,10 @@ app.use('/api/shipments', require('./src/routes/shipmentRoutes'));
 app.use('/api/tracking', require('./src/routes/trackingRoutes'));
 app.use('/api/invoices', require('./src/routes/invoiceRoutes'));
 app.use('/api/support', require('./src/routes/supportRoutes'));
+app.use('/api/expenses', require('./src/routes/expenseRoutes'));
+app.use('/api/income', require('./src/routes/incomeRoutes'));
+app.use('/api/settings', require('./src/routes/settingsRoutes'));
+app.use('/api/reports', require('./src/routes/reportRoutes'));
 
 // ===== 404 HANDLER =====
 app.use('*', (req, res) => {

@@ -60,7 +60,63 @@ exports.getUser = asyncHandler(async (req, res, next) => {
 
 // Create user
 exports.createUser = asyncHandler(async (req, res, next) => {
-  const user = await User.create(req.body);
+  const { email, password, firstName, lastName, phone, role, userType, status, clientId } = req.body;
+
+  // Validate required fields
+  if (!email || !password || !firstName || !lastName || !role || !userType) {
+    return next(new ApiError('Missing required fields', 400));
+  }
+
+  // Check if email already exists
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return next(new ApiError('Email already exists', 400));
+  }
+
+  // Validate role exists
+  const Role = require('../models/Role');
+  const roleDoc = await Role.findById(role);
+  if (!roleDoc) {
+    return next(new ApiError('Invalid role ID', 400));
+  }
+
+  // Validate client user has clientId
+  if (userType === 'client' && (!clientId || clientId.trim() === '')) {
+    return next(new ApiError('Client ID is required for client users', 400));
+  }
+
+  // If clientId is provided and not empty, validate it exists
+  if (clientId && clientId.trim() !== '') {
+    const Client = require('../models/Client');
+    const clientDoc = await Client.findById(clientId);
+    if (!clientDoc) {
+      return next(new ApiError('Invalid client ID', 400));
+    }
+  }
+
+  // Create user with proper permissions structure
+  const userData = {
+    email,
+    password,
+    firstName,
+    lastName,
+    role,
+    userType,
+    status: status || 'pending',
+    permissions: {
+      override: [],
+      blocked: []
+    }
+  };
+
+  // Add optional fields
+  if (phone) userData.phone = phone;
+  if (clientId && clientId.trim() !== '') userData.clientId = clientId;
+
+  const user = await User.create(userData);
+
+  // Populate role before returning
+  await user.populate('role');
 
   new ApiResponse(201, { user }, 'User created successfully').send(res);
 });
@@ -91,4 +147,29 @@ exports.deleteUser = asyncHandler(async (req, res, next) => {
   }
 
   new ApiResponse(200, null, 'User deleted successfully').send(res);
+});
+
+// Update user password
+exports.updateUserPassword = asyncHandler(async (req, res, next) => {
+  const { password } = req.body;
+
+  if (!password || !password.trim()) {
+    return next(new ApiError('Password is required', 400));
+  }
+
+  if (password.length < 8) {
+    return next(new ApiError('Password must be at least 8 characters', 400));
+  }
+
+  const user = await User.findById(req.params.id);
+
+  if (!user) {
+    return next(new ApiError('User not found', 404));
+  }
+
+  // Update password (pre-save hook will hash it)
+  user.password = password;
+  await user.save();
+
+  new ApiResponse(200, null, 'Password updated successfully').send(res);
 });

@@ -1,27 +1,27 @@
 const Joi = require('joi');
 
-exports.createUserSchema = Joi.object({
+exports.createUserValidator = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().min(8).required(),
   firstName: Joi.string().required(),
   lastName: Joi.string().required(),
-  phone: Joi.string().optional(),
-  roleId: Joi.string().required(),
+  phone: Joi.string().optional().allow(''),
+  role: Joi.string().required(), // Changed from roleId to role to match frontend
   userType: Joi.string().valid('admin', 'client').required(),
   clientId: Joi.string().when('userType', {
     is: 'client',
     then: Joi.required(),
-    otherwise: Joi.optional(),
+    otherwise: Joi.optional().allow('', null), // Allow empty string and null for admin users
   }),
-  status: Joi.string().valid('active', 'inactive', 'suspended', 'pending').default('pending'),
+  status: Joi.string().valid('active', 'inactive', 'suspended', 'pending').optional(),
 });
 
-exports.updateUserSchema = Joi.object({
+exports.updateUserValidator = Joi.object({
+  email: Joi.string().email().optional(),
   firstName: Joi.string().optional(),
   lastName: Joi.string().optional(),
-  phone: Joi.string().optional(),
-  roleId: Joi.string().optional(),
+  phone: Joi.string().optional().allow(''),
+  role: Joi.string().optional(), // Changed from roleId to role to match frontend
   status: Joi.string().valid('active', 'inactive', 'suspended', 'pending').optional(),
-  permissionsOverride: Joi.array().items(Joi.string()).optional(),
-  permissionsBlocked: Joi.array().items(Joi.string()).optional(),
+  clientId: Joi.string().optional(),
 });

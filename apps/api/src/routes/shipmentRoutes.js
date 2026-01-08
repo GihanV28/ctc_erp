@@ -287,4 +287,34 @@ router.put(
   shipmentController.cancelShipment
 );
 
+/**
+ * @swagger
+ * /api/shipments/{id}:
+ *   delete:
+ *     summary: Delete shipment
+ *     tags: [Shipments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Shipment deleted successfully
+ *       404:
+ *         description: Shipment not found
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ */
+router.delete(
+  '/:id',
+  hasPermission('shipments:write'),
+  shipmentController.deleteShipment
+);
+
 module.exports = router;

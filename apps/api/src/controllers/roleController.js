@@ -52,7 +52,7 @@ exports.getRole = asyncHandler(async (req, res) => {
   const role = await Role.findById(req.params.id).populate('userCount');
 
   if (!role) {
-    throw new ApiError(404, 'Role not found');
+    throw new ApiError('Role not found', 404);
   }
 
   new ApiResponse(200, { role }, 'Role fetched successfully').send(res);
@@ -69,7 +69,7 @@ exports.createRole = asyncHandler(async (req, res) => {
   // Check if role already exists
   const existingRole = await Role.findOne({ name });
   if (existingRole) {
-    throw new ApiError(400, 'Role with this name already exists');
+    throw new ApiError('Role with this name already exists', 400);
   }
 
   const role = await Role.create({
@@ -93,12 +93,15 @@ exports.updateRole = asyncHandler(async (req, res) => {
   const role = await Role.findById(req.params.id);
 
   if (!role) {
-    throw new ApiError(404, 'Role not found');
+    throw new ApiError('Role not found', 404);
   }
 
-  // Prevent updating system roles
+  // Prevent updating system roles unless user is super admin
   if (role.isSystem) {
-    throw new ApiError(403, 'Cannot modify system role');
+    const isSuperAdmin = await req.user.hasPermission('*');
+    if (!isSuperAdmin) {
+      throw new ApiError('Cannot modify system role. Only Super Admin can modify system roles.', 403);
+    }
   }
 
   const { displayName, description, permissions } = req.body;
@@ -122,20 +125,23 @@ exports.deleteRole = asyncHandler(async (req, res) => {
   const role = await Role.findById(req.params.id);
 
   if (!role) {
-    throw new ApiError(404, 'Role not found');
+    throw new ApiError('Role not found', 404);
   }
 
-  // Prevent deleting system roles
+  // Prevent deleting system roles unless user is super admin
   if (role.isSystem) {
-    throw new ApiError(403, 'Cannot delete system role');
+    const isSuperAdmin = await req.user.hasPermission('*');
+    if (!isSuperAdmin) {
+      throw new ApiError('Cannot delete system role. Only Super Admin can delete system roles.', 403);
+    }
   }
 
   // Check if role is assigned to any users
   const usersWithRole = await User.countDocuments({ role: role._id });
   if (usersWithRole > 0) {
     throw new ApiError(
-      400,
-      `Cannot delete role. ${usersWithRole} user(s) are assigned to this role`
+      `Cannot delete role. ${usersWithRole} user(s) are assigned to this role`,
+      400
     );
   }
 

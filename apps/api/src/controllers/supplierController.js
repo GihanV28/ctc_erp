@@ -14,11 +14,12 @@ exports.getAllSuppliers = asyncHandler(async (req, res) => {
   // Build query
   const query = {};
   if (status) query.status = status;
-  if (serviceType) query.serviceType = serviceType;
+  if (serviceType) query.serviceTypes = serviceType;
   if (search) {
     query.$or = [
       { supplierId: { $regex: search, $options: 'i' } },
       { name: { $regex: search, $options: 'i' } },
+      { tradingName: { $regex: search, $options: 'i' } },
       { 'contactPerson.email': { $regex: search, $options: 'i' } },
     ];
   }
@@ -52,7 +53,7 @@ exports.getSupplier = asyncHandler(async (req, res) => {
   const supplier = await Supplier.findById(req.params.id);
 
   if (!supplier) {
-    throw new ApiError(404, 'Supplier not found');
+    throw new ApiError('Supplier not found', 404);
   }
 
   new ApiResponse(200, { supplier }, 'Supplier fetched successfully').send(res);
@@ -66,9 +67,17 @@ exports.getSupplier = asyncHandler(async (req, res) => {
 exports.createSupplier = asyncHandler(async (req, res) => {
   const {
     name,
-    serviceType,
+    tradingName,
+    serviceTypes,
     contactPerson,
     address,
+    banking,
+    contracts,
+    paymentTerms,
+    tags,
+    notes,
+    status,
+    rating,
   } = req.body;
 
   // Check if supplier with same email already exists
@@ -76,15 +85,22 @@ exports.createSupplier = asyncHandler(async (req, res) => {
     'contactPerson.email': contactPerson.email,
   });
   if (existingSupplier) {
-    throw new ApiError(400, 'Supplier with this email already exists');
+    throw new ApiError('Supplier with this email already exists', 400);
   }
 
   const supplier = await Supplier.create({
     name,
-    serviceType,
+    tradingName,
+    serviceTypes,
     contactPerson,
     address,
-    status: 'active',
+    banking,
+    contracts,
+    paymentTerms,
+    tags,
+    notes,
+    status: status || 'pending',
+    rating: rating || 0,
   });
 
   new ApiResponse(201, { supplier }, 'Supplier created successfully').send(res.status(201));
@@ -99,7 +115,7 @@ exports.updateSupplier = asyncHandler(async (req, res) => {
   const supplier = await Supplier.findById(req.params.id);
 
   if (!supplier) {
-    throw new ApiError(404, 'Supplier not found');
+    throw new ApiError('Supplier not found', 404);
   }
 
   // Check if email is being changed and if it's already in use
@@ -111,19 +127,25 @@ exports.updateSupplier = asyncHandler(async (req, res) => {
       'contactPerson.email': req.body.contactPerson.email,
     });
     if (existingSupplier) {
-      throw new ApiError(400, 'Email already in use by another supplier');
+      throw new ApiError('Email already in use by another supplier', 400);
     }
   }
 
   // Update fields
   const allowedUpdates = [
     'name',
-    'serviceType',
+    'tradingName',
+    'serviceTypes',
     'contactPerson',
     'address',
+    'banking',
+    'contracts',
+    'paymentTerms',
+    'tags',
+    'notes',
     'status',
     'rating',
-    'activeContracts',
+    'performanceMetrics',
   ];
 
   allowedUpdates.forEach((field) => {
@@ -146,7 +168,7 @@ exports.deleteSupplier = asyncHandler(async (req, res) => {
   const supplier = await Supplier.findById(req.params.id);
 
   if (!supplier) {
-    throw new ApiError(404, 'Supplier not found');
+    throw new ApiError('Supplier not found', 404);
   }
 
   // Check if supplier is associated with any shipments
@@ -156,8 +178,8 @@ exports.deleteSupplier = asyncHandler(async (req, res) => {
   });
   if (shipmentsCount > 0) {
     throw new ApiError(
-      400,
-      `Cannot delete supplier. ${shipmentsCount} shipment(s) are associated with this supplier`
+      `Cannot delete supplier. ${shipmentsCount} shipment(s) are associated with this supplier`,
+      400
     );
   }
 
@@ -176,7 +198,7 @@ exports.getSuppliersByService = asyncHandler(async (req, res) => {
 
   const suppliers = await Supplier.find({
     status: 'active',
-    serviceType: serviceType,
+    serviceTypes: serviceType,
   }).sort({ name: 1 });
 
   new ApiResponse(200, { suppliers }, 'Suppliers fetched successfully').send(res);

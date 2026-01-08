@@ -3,9 +3,37 @@ const router = express.Router();
 const containerController = require('../controllers/containerController');
 const { auth } = require('../middleware/auth');
 const { hasPermission } = require('../middleware/rbac');
+const { validate } = require('../middleware/validate');
+const { createContainerValidator, updateContainerValidator } = require('../validators/containerValidators');
 
 // All routes require authentication
 router.use(auth);
+
+/**
+ * @swagger
+ * /api/containers/stats:
+ *   get:
+ *     summary: Get container statistics
+ *     tags: [Containers]
+ */
+router.get(
+  '/stats',
+  hasPermission('containers:read'),
+  containerController.getContainerStats
+);
+
+/**
+ * @swagger
+ * /api/containers/available/list:
+ *   get:
+ *     summary: Get available containers for dropdown
+ *     tags: [Containers]
+ */
+router.get(
+  '/available/list',
+  hasPermission('shipments:write'),
+  containerController.getAvailableContainers
+);
 
 /**
  * @swagger
@@ -56,6 +84,7 @@ router.get(
 router.post(
   '/',
   hasPermission('containers:write'),
+  validate(createContainerValidator),
   containerController.createContainer
 );
 
@@ -69,6 +98,7 @@ router.post(
 router.put(
   '/:id',
   hasPermission('containers:write'),
+  validate(updateContainerValidator),
   containerController.updateContainer
 );
 

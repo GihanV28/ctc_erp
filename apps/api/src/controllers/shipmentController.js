@@ -22,7 +22,7 @@ exports.getAllShipments = asyncHandler(async (req, res) => {
     !(await req.user.hasPermission('shipments:read'))
   ) {
     if (!req.user.clientId) {
-      throw new ApiError(403, 'Client ID not found for user');
+      throw new ApiError('Client ID not found for user', 403);
     }
     query.client = req.user.clientId;
   }
@@ -69,7 +69,7 @@ exports.getShipment = asyncHandler(async (req, res) => {
     .populate('trackingUpdates');
 
   if (!shipment) {
-    throw new ApiError(404, 'Shipment not found');
+    throw new ApiError('Shipment not found', 404);
   }
 
   // Check if user can access this shipment
@@ -78,7 +78,7 @@ exports.getShipment = asyncHandler(async (req, res) => {
     !(await req.user.hasPermission('shipments:read'))
   ) {
     if (shipment.client._id.toString() !== req.user.clientId.toString()) {
-      throw new ApiError(403, 'You can only view your own shipments');
+      throw new ApiError('You can only view your own shipments', 403);
     }
   }
 
@@ -109,7 +109,7 @@ exports.createShipment = asyncHandler(async (req, res) => {
   const Client = require('../models/Client');
   const clientDoc = await Client.findById(client);
   if (!clientDoc) {
-    throw new ApiError(404, 'Client not found');
+    throw new ApiError('Client not found', 404);
   }
 
   // Verify supplier exists if provided
@@ -117,7 +117,7 @@ exports.createShipment = asyncHandler(async (req, res) => {
     const Supplier = require('../models/Supplier');
     const supplierDoc = await Supplier.findById(supplier);
     if (!supplierDoc) {
-      throw new ApiError(404, 'Supplier not found');
+      throw new ApiError('Supplier not found', 404);
     }
   }
 
@@ -152,14 +152,14 @@ exports.updateShipment = asyncHandler(async (req, res) => {
   const shipment = await Shipment.findById(req.params.id);
 
   if (!shipment) {
-    throw new ApiError(404, 'Shipment not found');
+    throw new ApiError('Shipment not found', 404);
   }
 
   // Cannot update delivered or cancelled shipments
   if (['delivered', 'cancelled'].includes(shipment.status)) {
     throw new ApiError(
-      400,
-      `Cannot update shipment with status: ${shipment.status}`
+      `Cannot update shipment with status: ${shipment.status}`,
+      400
     );
   }
 
@@ -199,15 +199,15 @@ exports.cancelShipment = asyncHandler(async (req, res) => {
   const shipment = await Shipment.findById(req.params.id);
 
   if (!shipment) {
-    throw new ApiError(404, 'Shipment not found');
+    throw new ApiError('Shipment not found', 404);
   }
 
   if (shipment.status === 'delivered') {
-    throw new ApiError(400, 'Cannot cancel delivered shipment');
+    throw new ApiError('Cannot cancel delivered shipment', 400);
   }
 
   if (shipment.status === 'cancelled') {
-    throw new ApiError(400, 'Shipment is already cancelled');
+    throw new ApiError('Shipment is already cancelled', 400);
   }
 
   shipment.status = 'cancelled';
@@ -230,7 +230,7 @@ exports.getShipmentStats = asyncHandler(async (req, res) => {
     !(await req.user.hasPermission('shipments:read'))
   ) {
     if (!req.user.clientId) {
-      throw new ApiError(403, 'Client ID not found for user');
+      throw new ApiError('Client ID not found for user', 403);
     }
     query.client = req.user.clientId;
   }
@@ -259,4 +259,29 @@ exports.getShipmentStats = asyncHandler(async (req, res) => {
   res.json(
     new ApiResponse(200, 'Shipment stats fetched successfully', { stats })
   );
+});
+
+/**
+ * @desc    Delete shipment
+ * @route   DELETE /api/shipments/:id
+ * @access  Private (shipments:write)
+ */
+exports.deleteShipment = asyncHandler(async (req, res) => {
+  const shipment = await Shipment.findById(req.params.id);
+
+  if (!shipment) {
+    throw new ApiError('Shipment not found', 404);
+  }
+
+  // Release container if it was assigned
+  if (shipment.container) {
+    await Container.findByIdAndUpdate(shipment.container, {
+      status: 'available',
+      $unset: { currentShipment: 1 },
+    });
+  }
+
+  await shipment.deleteOne();
+
+  res.json(new ApiResponse(200, 'Shipment deleted successfully'));
 });

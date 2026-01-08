@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
-  Package,
   LayoutDashboard,
   PackageSearch,
   Box,
@@ -16,13 +15,15 @@ import {
   LogOut,
   Shield,
   MapPin,
-  DollarSign,
 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 interface NavItem {
   label: string;
   href: string;
   icon: React.ReactNode;
+  superAdminOnly?: boolean;
+  requiredPermission?: string;
 }
 
 const navItems: NavItem[] = [
@@ -40,11 +41,6 @@ const navItems: NavItem[] = [
     label: 'Tracking Update',
     href: '/dashboard/tracking',
     icon: <MapPin className="h-5 w-5" />,
-  },
-  {
-    label: 'Financials',
-    href: '/dashboard/financials',
-    icon: <DollarSign className="h-5 w-5" />,
   },
   {
     label: 'Shipments',
@@ -70,39 +66,64 @@ const navItems: NavItem[] = [
     label: 'Reports',
     href: '/dashboard/reports',
     icon: <FileText className="h-5 w-5" />,
+    requiredPermission: 'reports:read',
   },
   {
     label: 'Settings',
     href: '/dashboard/settings',
     icon: <Settings className="h-5 w-5" />,
+    superAdminOnly: true,
   },
 ];
 
 const Sidebar: React.FC = () => {
   const pathname = usePathname();
+  const { user, loading } = useAuth();
+
+  // Check if user is super admin
+  const isSuperAdmin = user?.role?.name === 'super_admin';
+
+  // Helper function to check if user has a specific permission
+  const hasPermission = (permission: string): boolean => {
+    if (!user || !user.role) return false;
+    // Super admins have all permissions
+    if (isSuperAdmin) return true;
+    return user.role.permissions?.includes(permission) || false;
+  };
+
+  // Filter nav items based on user role and permissions
+  // Only filter after loading is complete to prevent flickering
+  const visibleNavItems = navItems.filter(item => {
+    // Super admin only items
+    if (item.superAdminOnly) {
+      return loading || isSuperAdmin;
+    }
+
+    // Permission-based items
+    if (item.requiredPermission) {
+      return loading || isSuperAdmin || hasPermission(item.requiredPermission);
+    }
+
+    // Default: show item
+    return true;
+  });
 
   return (
-    <aside className="w-64 bg-gray-900 min-h-screen flex flex-col">
+    <aside className="fixed left-0 top-0 h-screen w-64 bg-gray-900 flex flex-col z-40">
       {/* Logo Section */}
-      <div className="p-6 border-b border-gray-800">
-        <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-2.5 rounded-xl shadow-lg">
-            <Package className="w-7 h-7 text-white" strokeWidth={2.5} />
-          </div>
-          <div>
-            <h1 className="text-white font-bold text-lg leading-tight">
-              Ceylon
-            </h1>
-            <h2 className="text-white font-bold text-lg leading-tight">
-              Cargo Transport
-            </h2>
-          </div>
+      <div className="p-6 border-b border-gray-800 flex-shrink-0">
+        <Link href="/dashboard" className="flex items-center justify-center">
+          <img
+            src="/images/logo/logo.png"
+            alt="Ceylon Cargo Transport"
+            className="h-12 w-auto"
+          />
         </Link>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => {
+      {/* Navigation - Scrollable */}
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {visibleNavItems.map((item) => {
           const isActive = pathname === item.href;
 
           return (
@@ -124,7 +145,7 @@ const Sidebar: React.FC = () => {
       </nav>
 
       {/* Logout Button */}
-      <div className="p-4 border-t border-gray-800">
+      <div className="p-4 border-t border-gray-800 flex-shrink-0">
         <Link
           href="/login"
           className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-all duration-200"

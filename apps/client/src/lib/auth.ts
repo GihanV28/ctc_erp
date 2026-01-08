@@ -5,15 +5,15 @@ export const authApi = {
   // Login
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     try {
-      const response = await api.post<AuthResponse>('/auth/login', credentials);
-      const { token, refreshToken, user } = response.data;
+      const response = await api.post<{ success: boolean; data: AuthResponse }>('/auth/login', credentials);
+      const { token, refreshToken, user } = response.data.data;
 
       // Store auth data
       localStorage.setItem('token', token);
       localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('user', JSON.stringify(user));
 
-      return response.data;
+      return response.data.data;
     } catch (error) {
       throw new Error(getErrorMessage(error));
     }
@@ -22,8 +22,8 @@ export const authApi = {
   // Register
   register: async (data: RegisterData): Promise<AuthResponse> => {
     try {
-      const response = await api.post<AuthResponse>('/auth/register', data);
-      return response.data;
+      const response = await api.post<{ success: boolean; data: AuthResponse }>('/auth/register', data);
+      return response.data.data;
     } catch (error) {
       throw new Error(getErrorMessage(error));
     }
@@ -56,14 +56,14 @@ export const authApi = {
   // Refresh token
   refreshToken: async (refreshToken: string): Promise<AuthResponse> => {
     try {
-      const response = await api.post<AuthResponse>('/auth/refresh-token', { refreshToken });
-      const { token, refreshToken: newRefreshToken } = response.data;
+      const response = await api.post<{ success: boolean; data: AuthResponse }>('/auth/refresh-token', { refreshToken });
+      const { token, refreshToken: newRefreshToken } = response.data.data;
 
       // Update stored tokens
       localStorage.setItem('token', token);
       localStorage.setItem('refreshToken', newRefreshToken);
 
-      return response.data;
+      return response.data.data;
     } catch (error) {
       throw new Error(getErrorMessage(error));
     }

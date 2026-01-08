@@ -1,7 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
+import { useAuth } from '@/context/AuthContext';
+import { useProfilePhoto } from '@/context/ProfilePhotoContext';
+import { profileApi } from '@/lib/profile';
 
 interface PortalLayoutProps {
   children: React.ReactNode;
@@ -16,6 +19,33 @@ export default function PortalLayout({
   subtitle,
   headerAction,
 }: PortalLayoutProps) {
+  const { user } = useAuth();
+  const { profilePhoto, userName, setUserName } = useProfilePhoto();
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const data = await profileApi.getProfile();
+        const fullName = `${data.user.firstName} ${data.user.lastName}`;
+        setUserName(fullName);
+      } catch (error) {
+        console.error('Failed to fetch user data:', error);
+      }
+    };
+
+    // Only fetch if we don't have userName yet or user changed
+    if (user && userName === 'User') {
+      fetchUserData();
+    }
+  }, [user, userName, setUserName]);
+
+  const getInitials = () => {
+    const names = userName.split(' ');
+    const first = names[0]?.charAt(0) || '';
+    const last = names[1]?.charAt(0) || '';
+    return (first + last).toUpperCase() || 'U';
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Sidebar />
@@ -33,7 +63,24 @@ export default function PortalLayout({
                   <p className="text-sm text-gray-600 mt-1">{subtitle}</p>
                 )}
               </div>
-              {headerAction && <div>{headerAction}</div>}
+
+              {/* User Profile Display */}
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-gray-700">
+                  {userName}
+                </span>
+                {profilePhoto ? (
+                  <img
+                    src={profilePhoto}
+                    alt="Profile"
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-semibold">
+                    {getInitials()}
+                  </div>
+                )}
+              </div>
             </div>
           </header>
         )}

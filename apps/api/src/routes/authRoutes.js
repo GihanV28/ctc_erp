@@ -79,6 +79,47 @@ router.post('/register', validate(registerValidator), authController.register);
 
 /**
  * @swagger
+ * /api/auth/register-client:
+ *   post:
+ *     summary: Register a new client through portal (creates both User + Client)
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - firstName
+ *               - lastName
+ *               - phone
+ *               - city
+ *               - country
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               companyName:
+ *                 type: string
+ *               address:
+ *                 type: object
+ *     responses:
+ *       201:
+ *         description: Client registered successfully
+ */
+router.post('/register-client', authController.registerClient);
+
+/**
+ * @swagger
  * /api/auth/login:
  *   post:
  *     summary: Login user

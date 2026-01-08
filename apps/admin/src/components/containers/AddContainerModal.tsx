@@ -13,6 +13,7 @@ interface AddContainerModalProps {
 }
 
 interface NewContainerFormData {
+  containerNumber: string;
   type: ContainerType;
   status: 'available' | 'in_use' | 'maintenance';
   condition: ContainerCondition;
@@ -39,7 +40,22 @@ const AddContainerModal: React.FC<AddContainerModalProps> = ({
   onClose,
   onSubmit,
 }) => {
+  // Generate container number based on current timestamp
+  const generateContainerNumber = () => {
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+
+    // Format: CCTU + YYMMDD + HHMMSS = CCTU241225143022
+    return `CCTU${year}${month}${day}${hours}${minutes}${seconds}`;
+  };
+
   const [formData, setFormData] = useState<NewContainerFormData>({
+    containerNumber: generateContainerNumber(),
     type: '40ft_standard',
     status: 'available',
     condition: 'good',
@@ -85,6 +101,7 @@ const AddContainerModal: React.FC<AddContainerModalProps> = ({
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof NewContainerFormData, string>> = {};
 
+    if (!formData.containerNumber.trim()) newErrors.containerNumber = 'Container number is required';
     if (!formData.locationName.trim()) newErrors.locationName = 'Location/Port name is required';
     if (!formData.city.trim()) newErrors.city = 'City is required';
     if (!formData.country.trim()) newErrors.country = 'Country is required';
@@ -106,8 +123,9 @@ const AddContainerModal: React.FC<AddContainerModalProps> = ({
       onSubmit(formData);
       setLoading(false);
       onClose();
-      // Reset form
+      // Reset form with new container number
       setFormData({
+        containerNumber: generateContainerNumber(),
         type: '40ft_standard',
         status: 'available',
         condition: 'good',
@@ -132,6 +150,39 @@ const AddContainerModal: React.FC<AddContainerModalProps> = ({
       size="xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Container Number */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            Container Number <span className="text-red-500">*</span>
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              name="containerNumber"
+              placeholder="e.g., CCTU241225143022"
+              value={formData.containerNumber}
+              onChange={handleChange}
+              className={`flex-1 px-4 py-2.5 rounded-lg border ${
+                errors.containerNumber
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                  : 'border-gray-300 focus:border-purple-500 focus:ring-purple-200'
+              } focus:ring-2 focus:outline-none transition-all`}
+            />
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, containerNumber: generateContainerNumber() })}
+              className="px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-200 transition-all whitespace-nowrap"
+              title="Generate new container number"
+            >
+              🔄 Regenerate
+            </button>
+          </div>
+          {errors.containerNumber && (
+            <p className="mt-1 text-sm text-red-500">{errors.containerNumber}</p>
+          )}
+          <p className="mt-1 text-xs text-gray-500">Auto-generated based on current date and time. You can edit or regenerate.</p>
+        </div>
+
         {/* Row 1: Container Type and Status */}
         <div className="grid grid-cols-2 gap-4">
           <div>

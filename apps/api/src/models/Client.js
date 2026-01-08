@@ -78,6 +78,11 @@ const clientSchema = new mongoose.Schema(
         default: true,
       },
     },
+    source: {
+      type: String,
+      enum: ['portal', 'direct', 'referral'],
+      default: 'direct',
+    },
     status: {
       type: String,
       enum: ['active', 'inactive', 'suspended'],

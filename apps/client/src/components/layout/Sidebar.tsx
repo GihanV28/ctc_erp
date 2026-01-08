@@ -21,7 +21,7 @@ const navigation = [
   { name: 'Shipments', href: '/shipments', icon: Package },
   { name: 'Tracking', href: '/track', icon: MapPin },
   { name: 'Reports', href: '/reports', icon: FileText },
-  { name: 'Support', href: '/support', icon: HelpCircle },
+  { name: 'Inquiry', href: '/support', icon: HelpCircle },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
@@ -38,15 +38,12 @@ export default function Sidebar() {
   return (
     <div className="fixed left-0 top-0 flex flex-col h-screen w-64 bg-gray-900 text-white z-40">
       {/* Logo */}
-      <div className="flex items-center gap-3 p-6 border-b border-gray-800">
-        <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-          <Package className="w-6 h-6 text-white" />
-        </div>
-        <div className="flex flex-col">
-          <span className="text-sm font-semibold leading-tight">Ceylon</span>
-          <span className="text-sm font-semibold leading-tight">Cargo</span>
-          <span className="text-sm font-semibold leading-tight">Transport</span>
-        </div>
+      <div className="flex items-center justify-center p-6 border-b border-gray-800">
+        <img
+          src="/images/logo/logo.png"
+          alt="Ceylon Cargo Transport"
+          className="h-12 w-auto object-contain"
+        />
       </div>
 
       {/* Navigation */}

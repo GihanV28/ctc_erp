@@ -1,49 +1,59 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PortalLayout from '@/components/layout/PortalLayout';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { Upload, MapPin } from 'lucide-react';
-import { mockUser } from '@/lib/mockData';
+import { Upload, MapPin, Pencil, Trash2 } from 'lucide-react';
+import { profileApi, ProfileData, UpdateProfileData } from '@/lib/profile';
+import { useAuth } from '@/context/AuthContext';
+import { useProfilePhoto } from '@/context/ProfilePhotoContext';
+import ProfilePictureModal from '@/components/profile/ProfilePictureModal';
 
 export default function ProfilePage() {
+  const { user } = useAuth();
+  const { profilePhoto, setProfilePhoto } = useProfilePhoto();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const [formData, setFormData] = useState({
     // Personal Information
-    fullName: 'John Doe',
-    email: 'john.doe@acmecorp.com',
-    phone: '+1 (555) 123-4567',
+    fullName: '',
+    email: '',
+    phone: '',
     dateOfBirth: '',
     nationality: '',
     preferredLanguage: '',
 
     // Company Information
-    companyName: 'Acme Corporation',
-    jobTitle: 'Logistics Manager',
-    companyEmail: 'info@acmecorp.com',
-    companyPhone: '+1 (555) 987-6543',
+    companyName: '',
+    jobTitle: '',
+    companyEmail: '',
+    companyPhone: '',
     industry: '',
-    website: 'www.acmecorp.com',
-    taxId: 'US-123456789',
+    website: '',
+    taxId: '',
 
     // Billing Address
     billingStreet: '',
-    billingCity: 'New York',
-    billingState: 'NY',
-    billingZip: '10001',
+    billingCity: '',
+    billingState: '',
+    billingZip: '',
     billingCountry: '',
 
     // Shipping Address
-    sameAsBilling: false,
+    sameAsBilling: true,
     shippingStreet: '',
-    shippingCity: 'Brooklyn',
-    shippingState: 'NY',
-    shippingZip: '11201',
+    shippingCity: '',
+    shippingState: '',
+    shippingZip: '',
     shippingCountry: '',
 
     // Payment Information
     paymentMethod: '',
-    creditLimit: '$50,000',
+    creditLimit: '',
     specialInstructions: '',
 
     // Notification Preferences
@@ -51,6 +61,62 @@ export default function ProfilePage() {
     smsNotifications: true,
     marketingCommunications: false,
   });
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      const data = await profileApi.getProfile();
+      setProfileData(data);
+
+      // Populate form with fetched data
+      setFormData({
+        fullName: `${data.user.firstName} ${data.user.lastName}`,
+        email: data.user.email,
+        phone: data.user.phone || '',
+        dateOfBirth: '',
+        nationality: '',
+        preferredLanguage: '',
+
+        companyName: data.client?.companyName || '',
+        jobTitle: data.client?.contactPerson?.jobTitle || '',
+        companyEmail: data.client?.contactPerson?.email || '',
+        companyPhone: data.client?.contactPerson?.phone || '',
+        industry: data.client?.industry || '',
+        website: data.client?.website || '',
+        taxId: data.client?.taxId || '',
+
+        billingStreet: data.client?.address?.street || data.client?.billingAddress?.street || '',
+        billingCity: data.client?.address?.city || data.client?.billingAddress?.city || '',
+        billingState: data.client?.address?.state || data.client?.billingAddress?.state || '',
+        billingZip: data.client?.address?.postalCode || data.client?.billingAddress?.postalCode || '',
+        billingCountry: data.client?.address?.country || data.client?.billingAddress?.country || '',
+
+        sameAsBilling: data.client?.billingAddress?.sameAsAddress !== false,
+        shippingStreet: '',
+        shippingCity: '',
+        shippingState: '',
+        shippingZip: '',
+        shippingCountry: '',
+
+        paymentMethod: '',
+        creditLimit: data.client?.creditLimit ? `$${data.client.creditLimit.toLocaleString()}` : '',
+        specialInstructions: data.client?.notes || '',
+
+        emailNotifications: true,
+        smsNotifications: true,
+        marketingCommunications: false,
+      });
+    } catch (error: any) {
+      console.error('Failed to fetch profile:', error);
+      alert(error.message || 'Failed to load profile');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -62,9 +128,105 @@ export default function ProfilePage() {
     }));
   };
 
-  const handleSave = () => {
-    console.log('Saving profile:', formData);
-    // Handle save logic
+  const handlePhotoUpload = async (file: File) => {
+    try {
+      // Create a local preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfilePhoto(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      alert('Profile picture uploaded successfully!');
+    } catch (error: any) {
+      console.error('Failed to upload photo:', error);
+      alert(error.message || 'Failed to upload photo');
+    }
+  };
+
+  const handlePhotoDelete = () => {
+    if (window.confirm('Are you sure you want to remove your profile picture?')) {
+      setProfilePhoto(null);
+      alert('Profile picture removed successfully!');
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+
+      // Parse full name into first and last name
+      const nameParts = formData.fullName.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      // Parse credit limit (remove $ and commas)
+      const creditLimit = formData.creditLimit
+        ? parseFloat(formData.creditLimit.replace(/[$,]/g, ''))
+        : 0;
+
+      const updateData: UpdateProfileData = {
+        firstName,
+        lastName,
+        phone: formData.phone,
+        companyName: formData.companyName,
+        jobTitle: formData.jobTitle,
+        companyEmail: formData.companyEmail,
+        companyPhone: formData.companyPhone,
+        industry: formData.industry,
+        website: formData.website,
+        taxId: formData.taxId,
+        billingAddress: {
+          street: formData.billingStreet,
+          city: formData.billingCity,
+          state: formData.billingState,
+          postalCode: formData.billingZip,
+          country: formData.billingCountry,
+        },
+        creditLimit,
+        specialInstructions: formData.specialInstructions,
+        sameAsBilling: formData.sameAsBilling,
+      };
+
+      if (!formData.sameAsBilling) {
+        updateData.shippingAddress = {
+          street: formData.shippingStreet,
+          city: formData.shippingCity,
+          state: formData.shippingState,
+          postalCode: formData.shippingZip,
+          country: formData.shippingCountry,
+        };
+      }
+
+      await profileApi.updateProfile(updateData);
+
+      // Refresh profile data
+      await fetchProfile();
+
+      alert('Profile updated successfully!');
+    } catch (error: any) {
+      console.error('Failed to update profile:', error);
+      alert(error.message || 'Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <PortalLayout title="Profile" subtitle="Loading...">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-gray-600">Loading profile...</div>
+        </div>
+      </PortalLayout>
+    );
+  }
+
+  const getInitials = () => {
+    if (!profileData) return 'U';
+    const first = profileData.user.firstName?.charAt(0) || '';
+    const last = profileData.user.lastName?.charAt(0) || '';
+    return (first + last).toUpperCase() || 'U';
   };
 
   return (
@@ -73,43 +235,67 @@ export default function ProfilePage() {
       subtitle="Manage your account information and preferences"
       headerAction={
         <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-gray-700">{mockUser.name}</span>
+          <span className="text-sm font-medium text-gray-700">
+            {profileData ? `${profileData.user.firstName} ${profileData.user.lastName}` : 'User'}
+          </span>
           <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-semibold">
-            {mockUser.avatar}
+            {getInitials()}
           </div>
         </div>
       }
     >
-      <div className="max-w-5xl space-y-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Profile Picture */}
         <div className="bg-white rounded-2xl p-6 border border-gray-200">
           <h3 className="text-lg font-bold text-gray-900 mb-4">Profile Picture</h3>
 
           <div className="flex items-start gap-6">
-            <div className="w-24 h-24 rounded-full bg-orange-500 flex items-center justify-center text-white text-3xl font-bold">
-              JD
-            </div>
+            {profilePhoto ? (
+              <img
+                src={profilePhoto}
+                alt="Profile"
+                className="w-24 h-24 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-orange-500 flex items-center justify-center text-white text-3xl font-bold">
+                {getInitials()}
+              </div>
+            )}
 
             <div className="flex-1">
               <p className="text-sm text-gray-600 mb-3">
-                Upload a professional photo. Recommended size: 400x400px. Maximum file size: 2MB.
+                Upload a professional photo. Recommended size: 400×400px. Maximum file size: 2MB.
               </p>
 
-              <div className="flex gap-3">
-                <Button variant="outline" size="sm" leftIcon={<Upload className="w-4 h-4" />}>
-                  Upload New Photo
-                </Button>
-                <Button variant="danger" size="sm">
-                  Remove Photo
-                </Button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="p-2 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors shadow-sm"
+                  title="Edit profile picture"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+                {profilePhoto && (
+                  <button
+                    onClick={handlePhotoDelete}
+                    className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors shadow-sm"
+                    title="Remove profile picture"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
-
-              <button className="text-sm text-purple-600 hover:text-purple-700 font-medium mt-3">
-                Change Photo
-              </button>
             </div>
           </div>
         </div>
+
+        {/* Profile Picture Upload Modal */}
+        <ProfilePictureModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onUpload={handlePhotoUpload}
+          currentPhoto={profilePhoto || undefined}
+        />
 
         {/* Personal Information */}
         <div className="bg-white rounded-2xl p-6 border border-gray-200">
@@ -129,6 +315,8 @@ export default function ProfilePage() {
               type="email"
               value={formData.email}
               onChange={handleChange}
+              disabled
+              helperText="Email cannot be changed"
             />
 
             <Input
@@ -345,6 +533,8 @@ export default function ProfilePage() {
               name="creditLimit"
               value={formData.creditLimit}
               onChange={handleChange}
+              disabled
+              helperText="Contact support to adjust credit limit"
             />
 
             <div className="md:col-span-2">
@@ -414,10 +604,10 @@ export default function ProfilePage() {
 
         {/* Action Buttons */}
         <div className="flex justify-end gap-3 pb-8">
-          <Button variant="outline" size="lg">
+          <Button variant="outline" size="lg" onClick={() => fetchProfile()}>
             Cancel
           </Button>
-          <Button variant="primary" size="lg" onClick={handleSave}>
+          <Button variant="primary" size="lg" onClick={handleSave} loading={saving}>
             Save Changes
           </Button>
         </div>

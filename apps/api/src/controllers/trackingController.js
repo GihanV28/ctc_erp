@@ -17,7 +17,7 @@ exports.getShipmentTracking = asyncHandler(async (req, res) => {
   const shipment = await Shipment.findById(shipmentId).populate('client');
 
   if (!shipment) {
-    throw new ApiError(404, 'Shipment not found');
+    throw new ApiError('Shipment not found', 404);
   }
 
   // Check if user can access this shipment's tracking
@@ -26,7 +26,7 @@ exports.getShipmentTracking = asyncHandler(async (req, res) => {
     !(await req.user.hasPermission('tracking:read'))
   ) {
     if (shipment.client._id.toString() !== req.user.clientId.toString()) {
-      throw new ApiError(403, 'You can only view your own shipment tracking');
+      throw new ApiError('You can only view your own shipment tracking', 403);
     }
   }
 
@@ -60,7 +60,7 @@ exports.getTrackingByTrackingId = asyncHandler(async (req, res) => {
     .select('shipmentId trackingId status origin destination estimatedArrival');
 
   if (!shipment) {
-    throw new ApiError(404, 'Tracking ID not found');
+    throw new ApiError('Tracking ID not found', 404);
   }
 
   // Get tracking updates
@@ -92,12 +92,12 @@ exports.createTrackingUpdate = asyncHandler(async (req, res) => {
   );
 
   if (!shipmentDoc) {
-    throw new ApiError(404, 'Shipment not found');
+    throw new ApiError('Shipment not found', 404);
   }
 
   // Cannot add tracking updates to cancelled shipments
   if (shipmentDoc.status === 'cancelled') {
-    throw new ApiError(400, 'Cannot add tracking updates to cancelled shipment');
+    throw new ApiError('Cannot add tracking updates to cancelled shipment', 400);
   }
 
   // Create tracking update
@@ -147,7 +147,7 @@ exports.updateTrackingUpdate = asyncHandler(async (req, res) => {
   const trackingUpdate = await TrackingUpdate.findById(req.params.id);
 
   if (!trackingUpdate) {
-    throw new ApiError(404, 'Tracking update not found');
+    throw new ApiError('Tracking update not found', 404);
   }
 
   const { status, location, notes, timestamp } = req.body;
@@ -175,7 +175,7 @@ exports.deleteTrackingUpdate = asyncHandler(async (req, res) => {
   const trackingUpdate = await TrackingUpdate.findById(req.params.id);
 
   if (!trackingUpdate) {
-    throw new ApiError(404, 'Tracking update not found');
+    throw new ApiError('Tracking update not found', 404);
   }
 
   await trackingUpdate.deleteOne();

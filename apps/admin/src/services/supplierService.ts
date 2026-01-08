@@ -4,7 +4,8 @@ export interface Supplier {
   _id: string;
   supplierId: string;
   name: string;
-  serviceType: 'ocean_freight' | 'air_freight' | 'customs' | 'warehouse' | 'transport' | 'insurance';
+  tradingName?: string;
+  serviceTypes: ('ocean_freight' | 'air_sea' | 'container' | 'port_ops' | 'warehouse' | 'customs' | 'ground' | 'express')[];
   contactPerson: {
     firstName: string;
     lastName: string;
@@ -19,16 +20,37 @@ export interface Supplier {
     postalCode?: string;
     country: string;
   };
-  status: 'active' | 'inactive' | 'suspended';
+  banking?: {
+    bankName?: string;
+    swiftCode?: string;
+    accountName?: string;
+    accountNumber?: string;
+  };
+  contracts?: {
+    contractId: string;
+    value: number;
+    startDate: Date;
+    endDate: Date;
+    status: 'active' | 'pending' | 'expired' | 'cancelled';
+  }[];
+  status: 'active' | 'inactive' | 'pending';
   rating?: number;
-  activeContracts?: number;
+  paymentTerms?: 'net_15' | 'net_30' | 'net_45' | 'net_60' | 'net_90' | 'immediate' | 'custom';
+  tags?: string[];
+  notes?: string;
+  performanceMetrics?: {
+    totalShipments: number;
+    activeContracts: number;
+    onTimeRate: number;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface CreateSupplierData {
   name: string;
-  serviceType: 'ocean_freight' | 'air_freight' | 'customs' | 'warehouse' | 'transport' | 'insurance';
+  tradingName?: string;
+  serviceTypes: ('ocean_freight' | 'air_sea' | 'container' | 'port_ops' | 'warehouse' | 'customs' | 'ground' | 'express')[];
   contactPerson: {
     firstName: string;
     lastName: string;
@@ -43,6 +65,24 @@ export interface CreateSupplierData {
     postalCode?: string;
     country: string;
   };
+  banking?: {
+    bankName?: string;
+    swiftCode?: string;
+    accountName?: string;
+    accountNumber?: string;
+  };
+  contracts?: {
+    contractId: string;
+    value: number;
+    startDate: Date;
+    endDate: Date;
+    status: 'active' | 'pending' | 'expired' | 'cancelled';
+  }[];
+  status?: 'active' | 'inactive' | 'pending';
+  rating?: number;
+  paymentTerms?: 'net_15' | 'net_30' | 'net_45' | 'net_60' | 'net_90' | 'immediate' | 'custom';
+  tags?: string[];
+  notes?: string;
 }
 
 export const supplierService = {

@@ -138,11 +138,40 @@ export const shipmentService = {
     }
   },
 
+  // Delete shipment
+  delete: async (id: string): Promise<void> => {
+    try {
+      await api.delete(`/shipments/${id}`);
+    } catch (error) {
+      throw new Error(getErrorMessage(error));
+    }
+  },
+
   // Get shipment stats
   getStats: async (): Promise<ShipmentStats> => {
     try {
       const response = await api.get<ApiResponse<{ stats: ShipmentStats }>>('/shipments/stats');
       return response.data.data!.stats;
+    } catch (error) {
+      throw new Error(getErrorMessage(error));
+    }
+  },
+
+  // Get active clients for dropdown
+  getActiveClients: async (): Promise<Array<{ _id: string; clientId: string; companyName: string; contactPerson: any }>> => {
+    try {
+      const response = await api.get<ApiResponse<{ clients: any[] }>>('/clients/active/list');
+      return response.data.data!.clients;
+    } catch (error) {
+      throw new Error(getErrorMessage(error));
+    }
+  },
+
+  // Get available containers for dropdown
+  getAvailableContainers: async (): Promise<Array<{ _id: string; containerId: string; containerNumber: string; type: string; condition: string; location?: string }>> => {
+    try {
+      const response = await api.get<ApiResponse<{ containers: any[] }>>('/containers/available/list');
+      return response.data.data!.containers;
     } catch (error) {
       throw new Error(getErrorMessage(error));
     }

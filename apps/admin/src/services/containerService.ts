@@ -7,7 +7,13 @@ export interface Container {
   type: '20ft_standard' | '40ft_standard' | '40ft_high_cube' | '20ft_high_cube' | '40ft_refrigerated' | '20ft_refrigerated';
   status: 'available' | 'in_use' | 'maintenance' | 'damaged';
   location?: string;
-  currentShipment?: string;
+  currentShipment?: string | {
+    _id: string;
+    shipmentId: string;
+    origin: string;
+    destination: string;
+    status?: string;
+  };
   condition: 'excellent' | 'good' | 'fair' | 'poor';
   lastInspectionDate?: Date;
   purchaseDate?: Date;
@@ -88,6 +94,24 @@ export const containerService = {
         params: { containerType },
       });
       return response.data.data!.containers;
+    } catch (error) {
+      throw new Error(getErrorMessage(error));
+    }
+  },
+
+  // Get container statistics
+  getStats: async (): Promise<{
+    total: number;
+    available: number;
+    inUse: number;
+    maintenance: number;
+    damaged: number;
+    typeBreakdown: Record<string, number>;
+    conditionBreakdown: Record<string, number>;
+  }> => {
+    try {
+      const response = await api.get<ApiResponse<{ stats: any }>>('/containers/stats');
+      return response.data.data!.stats;
     } catch (error) {
       throw new Error(getErrorMessage(error));
     }

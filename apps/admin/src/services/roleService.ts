@@ -3,17 +3,31 @@ import api, { ApiResponse, getErrorMessage } from '@/lib/api';
 export interface Role {
   _id: string;
   name: string;
+  displayName: string;
   description?: string;
+  userType: 'admin' | 'client';
   permissions: string[];
   isSystem: boolean;
+  userCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface CreateRoleData {
   name: string;
+  displayName: string;
   description?: string;
+  userType: 'admin' | 'client';
   permissions: string[];
+}
+
+export interface Permission {
+  category: string;
+  permissions: {
+    key: string;
+    label: string;
+    description?: string;
+  }[];
 }
 
 export const roleService = {

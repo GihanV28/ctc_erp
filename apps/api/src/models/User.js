@@ -34,6 +34,47 @@ const userSchema = new mongoose.Schema(
     avatar: {
       type: String, // URL to avatar image
     },
+    profilePhoto: {
+      type: String, // URL to profile photo
+    },
+    bio: {
+      type: String,
+      trim: true,
+    },
+    location: {
+      type: String,
+      trim: true,
+    },
+    jobTitle: {
+      type: String,
+      trim: true,
+    },
+    companyInfo: {
+      companyName: String,
+      companyEmail: String,
+      companyPhone: String,
+      companyAddress: String,
+      website: String,
+      taxId: String,
+      updatedAt: Date,
+    },
+    notificationPreferences: {
+      emailNotifications: { type: Boolean, default: true },
+      pushNotifications: { type: Boolean, default: true },
+      smsNotifications: { type: Boolean, default: false },
+      shipmentUpdates: { type: Boolean, default: true },
+      invoiceAlerts: { type: Boolean, default: true },
+      systemUpdates: { type: Boolean, default: true },
+      newsletter: { type: Boolean, default: false },
+      updatedAt: Date,
+    },
+    systemPreferences: {
+      language: { type: String, default: 'English' },
+      timezone: { type: String, default: 'Asia/Phnom_Penh (UTC+7:00)' },
+      dateFormat: { type: String, default: 'DD/MM/YYYY' },
+      currency: { type: String, default: 'USD ($)' },
+      updatedAt: Date,
+    },
     role: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Role',
@@ -47,8 +88,8 @@ const userSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['active', 'inactive', 'suspended', 'pending'],
-      default: 'pending',
+      enum: ['active', 'inactive', 'suspended'],
+      default: 'active',
     },
     emailVerified: {
       type: Boolean,

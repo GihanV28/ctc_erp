@@ -22,7 +22,7 @@ exports.getAllInvoices = asyncHandler(async (req, res) => {
     !(await req.user.hasPermission('invoices:read'))
   ) {
     if (!req.user.clientId) {
-      throw new ApiError(403, 'Client ID not found for user');
+      throw new ApiError('Client ID not found for user', 403);
     }
     query.client = req.user.clientId;
   }
@@ -65,7 +65,7 @@ exports.getInvoice = asyncHandler(async (req, res) => {
     .populate('shipment', 'shipmentId trackingNumber origin destination');
 
   if (!invoice) {
-    throw new ApiError(404, 'Invoice not found');
+    throw new ApiError('Invoice not found', 404);
   }
 
   // Check if user can access this invoice
@@ -74,7 +74,7 @@ exports.getInvoice = asyncHandler(async (req, res) => {
     !(await req.user.hasPermission('invoices:read'))
   ) {
     if (invoice.client._id.toString() !== req.user.clientId.toString()) {
-      throw new ApiError(403, 'You can only view your own invoices');
+      throw new ApiError('You can only view your own invoices', 403);
     }
   }
 
@@ -92,19 +92,19 @@ exports.createInvoice = asyncHandler(async (req, res) => {
   // Verify client exists
   const clientDoc = await Client.findById(client);
   if (!clientDoc) {
-    throw new ApiError(404, 'Client not found');
+    throw new ApiError('Client not found', 404);
   }
 
   // Verify shipment exists if provided
   if (shipment) {
     const shipmentDoc = await Shipment.findById(shipment);
     if (!shipmentDoc) {
-      throw new ApiError(404, 'Shipment not found');
+      throw new ApiError('Shipment not found', 404);
     }
 
     // Verify shipment belongs to the client
     if (shipmentDoc.client.toString() !== client) {
-      throw new ApiError(400, 'Shipment does not belong to this client');
+      throw new ApiError('Shipment does not belong to this client', 400);
     }
   }
 
@@ -133,12 +133,12 @@ exports.updateInvoice = asyncHandler(async (req, res) => {
   const invoice = await Invoice.findById(req.params.id);
 
   if (!invoice) {
-    throw new ApiError(404, 'Invoice not found');
+    throw new ApiError('Invoice not found', 404);
   }
 
   // Cannot update paid or cancelled invoices
   if (['paid', 'cancelled'].includes(invoice.status)) {
-    throw new ApiError(400, `Cannot update ${invoice.status} invoice`);
+    throw new ApiError(`Cannot update ${invoice.status} invoice`, 400);
   }
 
   const { items, tax, notes, dueDate } = req.body;
@@ -166,15 +166,15 @@ exports.markInvoiceAsPaid = asyncHandler(async (req, res) => {
   const invoice = await Invoice.findById(req.params.id);
 
   if (!invoice) {
-    throw new ApiError(404, 'Invoice not found');
+    throw new ApiError('Invoice not found', 404);
   }
 
   if (invoice.status === 'paid') {
-    throw new ApiError(400, 'Invoice is already paid');
+    throw new ApiError('Invoice is already paid', 400);
   }
 
   if (invoice.status === 'cancelled') {
-    throw new ApiError(400, 'Cannot mark cancelled invoice as paid');
+    throw new ApiError('Cannot mark cancelled invoice as paid', 400);
   }
 
   invoice.status = 'paid';
@@ -195,15 +195,15 @@ exports.cancelInvoice = asyncHandler(async (req, res) => {
   const invoice = await Invoice.findById(req.params.id);
 
   if (!invoice) {
-    throw new ApiError(404, 'Invoice not found');
+    throw new ApiError('Invoice not found', 404);
   }
 
   if (invoice.status === 'paid') {
-    throw new ApiError(400, 'Cannot cancel paid invoice');
+    throw new ApiError('Cannot cancel paid invoice', 400);
   }
 
   if (invoice.status === 'cancelled') {
-    throw new ApiError(400, 'Invoice is already cancelled');
+    throw new ApiError('Invoice is already cancelled', 400);
   }
 
   invoice.status = 'cancelled';
@@ -226,7 +226,7 @@ exports.getInvoiceStats = asyncHandler(async (req, res) => {
     !(await req.user.hasPermission('invoices:read'))
   ) {
     if (!req.user.clientId) {
-      throw new ApiError(403, 'Client ID not found for user');
+      throw new ApiError('Client ID not found for user', 403);
     }
     query.client = req.user.clientId;
   }

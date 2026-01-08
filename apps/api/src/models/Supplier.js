@@ -13,16 +13,22 @@ const supplierSchema = new mongoose.Schema(
       required: [true, 'Supplier name is required'],
       trim: true,
     },
-    serviceType: {
+    tradingName: {
       type: String,
-      required: [true, 'Service type is required'],
+      trim: true,
+    },
+    serviceTypes: {
+      type: [String],
+      required: [true, 'At least one service type is required'],
       enum: [
         'ocean_freight',
-        'air_freight',
-        'customs',
+        'air_sea',
+        'container',
+        'port_ops',
         'warehouse',
-        'transport',
-        'insurance',
+        'customs',
+        'ground',
+        'express',
       ],
     },
     contactPerson: {
@@ -58,10 +64,29 @@ const supplierSchema = new mongoose.Schema(
         required: true,
       },
     },
+    banking: {
+      bankName: String,
+      swiftCode: String,
+      accountName: String,
+      accountNumber: String,
+    },
+    contracts: [
+      {
+        contractId: String,
+        value: Number,
+        startDate: Date,
+        endDate: Date,
+        status: {
+          type: String,
+          enum: ['active', 'pending', 'expired', 'cancelled'],
+          default: 'pending',
+        },
+      },
+    ],
     status: {
       type: String,
-      enum: ['active', 'inactive', 'suspended'],
-      default: 'active',
+      enum: ['active', 'inactive', 'pending'],
+      default: 'pending',
     },
     rating: {
       type: Number,
@@ -69,9 +94,28 @@ const supplierSchema = new mongoose.Schema(
       max: 5,
       default: 0,
     },
-    activeContracts: {
-      type: Number,
-      default: 0,
+    paymentTerms: {
+      type: String,
+      enum: ['net_15', 'net_30', 'net_45', 'net_60', 'net_90', 'immediate', 'custom'],
+      default: 'net_30',
+    },
+    tags: [String],
+    notes: String,
+    performanceMetrics: {
+      totalShipments: {
+        type: Number,
+        default: 0,
+      },
+      activeContracts: {
+        type: Number,
+        default: 0,
+      },
+      onTimeRate: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100,
+      },
     },
   },
   {
@@ -81,7 +125,7 @@ const supplierSchema = new mongoose.Schema(
 
 // Indexes
 supplierSchema.index({ supplierId: 1 });
-supplierSchema.index({ serviceType: 1 });
+supplierSchema.index({ serviceTypes: 1 });
 supplierSchema.index({ status: 1 });
 
 // Auto-generate supplier ID

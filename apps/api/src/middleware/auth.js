@@ -29,6 +29,11 @@ exports.protect = asyncHandler(async (req, res, next) => {
       return next(new ApiError('User no longer exists', 401));
     }
 
+    // Check if role exists (important after role changes)
+    if (!user.role) {
+      return next(new ApiError('User role not found. Please contact support or log in again', 401));
+    }
+
     // Check if user is active
     if (user.status !== 'active') {
       return next(new ApiError('Your account is not active', 403));

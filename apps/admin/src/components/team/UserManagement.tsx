@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   Plus,
@@ -13,8 +13,12 @@ import {
   Shield,
   MoreVertical,
   X,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
+import { userService, User as UserType, CreateUserData, UpdateUserData } from '@/services/userService';
+import { roleService, Role as RoleType } from '@/services/roleService';
+import { getErrorMessage } from '@/lib/api';
 
 // Types
 interface Role {
@@ -49,6 +53,8 @@ interface UserFormData {
   userType: 'admin' | 'client';
   status: 'active' | 'inactive' | 'suspended' | 'pending';
   clientId?: string;
+  password?: string;
+  confirmPassword?: string;
 }
 
 // Mock data
@@ -176,10 +182,31 @@ const UserFormModal: React.FC<{
     roleId: user?.role._id || '',
     userType: user?.userType || 'admin',
     status: user?.status || 'active',
-    clientId: user?.clientId || ''
+    clientId: user?.clientId || '',
+    password: '',
+    confirmPassword: ''
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof UserFormData, string>>>({});
+
+  // Reset form data when user prop changes
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        email: user?.email || '',
+        firstName: user?.firstName || '',
+        lastName: user?.lastName || '',
+        phone: user?.phone || '',
+        roleId: user?.role._id || '',
+        userType: user?.userType || 'admin',
+        status: user?.status || 'active',
+        clientId: user?.clientId || '',
+        password: '',
+        confirmPassword: ''
+      });
+      setErrors({});
+    }
+  }, [isOpen, user]);
 
   if (!isOpen) return null;
 
@@ -206,6 +233,31 @@ const UserFormModal: React.FC<{
 
     if (formData.userType === 'client' && !formData.clientId?.trim()) {
       newErrors.clientId = 'Client ID is required for client users';
+    }
+
+    // Password validation
+    if (!user) {
+      // For new users, password is required
+      if (!formData.password?.trim()) {
+        newErrors.password = 'Password is required';
+      } else if (formData.password.length < 8) {
+        newErrors.password = 'Password must be at least 8 characters';
+      }
+
+      if (!formData.confirmPassword?.trim()) {
+        newErrors.confirmPassword = 'Please confirm your password';
+      } else if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match';
+      }
+    } else {
+      // For editing, password is optional but must match if provided
+      if (formData.password && formData.password.length < 8) {
+        newErrors.password = 'Password must be at least 8 characters';
+      }
+
+      if (formData.password && formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match';
+      }
     }
 
     setErrors(newErrors);
@@ -345,7 +397,6 @@ const UserFormModal: React.FC<{
                         ? 'border-red-300 focus:ring-red-500'
                         : 'border-gray-200 focus:ring-purple-500'
                     }`}
-                    disabled={!!user}
                   />
                   {errors.email && (
                     <p className="mt-1 text-sm text-red-600">{errors.email}</p>
@@ -363,6 +414,50 @@ const UserFormModal: React.FC<{
                     placeholder="+94 77 123 4567"
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
+                </div>
+              </div>
+
+              {/* Password Fields */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Password {!user && <span className="text-red-500">*</span>}
+                    {user && <span className="text-gray-500 text-xs ml-1">(Leave blank to keep current)</span>}
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder={user ? "Enter new password" : "Enter password"}
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 ${
+                      errors.password
+                        ? 'border-red-300 focus:ring-red-500'
+                        : 'border-gray-200 focus:ring-purple-500'
+                    }`}
+                  />
+                  {errors.password && (
+                    <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Confirm Password {!user && <span className="text-red-500">*</span>}
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.confirmPassword}
+                    onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    placeholder={user ? "Confirm new password" : "Confirm password"}
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 ${
+                      errors.confirmPassword
+                        ? 'border-red-300 focus:ring-red-500'
+                        : 'border-gray-200 focus:ring-purple-500'
+                    }`}
+                  />
+                  {errors.confirmPassword && (
+                    <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+                  )}
                 </div>
               </div>
 
@@ -427,7 +522,6 @@ const UserFormModal: React.FC<{
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
-                  <option value="pending">Pending</option>
                   <option value="suspended">Suspended</option>
                 </select>
               </div>
@@ -508,7 +602,8 @@ const DeleteConfirmModal: React.FC<{
 
 // Main Component
 export default function UserManagement() {
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | User['status']>('all');
   const [filterType, setFilterType] = useState<'all' | 'admin' | 'client'>('all');
@@ -516,6 +611,35 @@ export default function UserManagement() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | undefined>(undefined);
   const [userToDelete, setUserToDelete] = useState<User | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Fetch users and roles on component mount
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch users and roles in parallel
+      const [usersData, rolesData] = await Promise.all([
+        userService.getAll({ limit: 100 }),
+        roleService.getAll()
+      ]);
+
+      setUsers(usersData.data.users || []);
+      setRoles(rolesData);
+    } catch (err) {
+      setError(getErrorMessage(err));
+      console.error('Failed to fetch data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredUsers = users.filter(user => {
     const matchesSearch =
@@ -570,241 +694,307 @@ export default function UserManagement() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleSave = (formData: UserFormData) => {
-    const selectedRole = mockRoles.find(r => r._id === formData.roleId);
-    if (!selectedRole) return;
+  const handleSave = async (formData: UserFormData) => {
+    try {
+      setActionLoading(true);
+      setError(null);
 
-    if (selectedUser) {
-      // Update existing user
-      setUsers(prev =>
-        prev.map(u =>
-          u._id === selectedUser._id
-            ? {
-                ...u,
-                ...formData,
-                role: selectedRole,
-              }
-            : u
-        )
-      );
-    } else {
-      // Create new user
-      const newUser: User = {
-        _id: String(Date.now()),
-        ...formData,
-        role: selectedRole,
-        emailVerified: false,
-        phoneVerified: false,
-        createdAt: new Date().toISOString()
-      };
-      setUsers(prev => [...prev, newUser]);
+      if (selectedUser) {
+        // Update existing user
+        const updateData: UpdateUserData = {
+          email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone,
+          role: formData.roleId,
+          status: formData.status,
+          clientId: formData.clientId
+        };
+
+        const updatedUser = await userService.update(selectedUser._id, updateData);
+
+        // Update password if provided
+        if (formData.password && formData.password.trim()) {
+          await userService.updatePassword(selectedUser._id, formData.password);
+        }
+
+        setUsers(prev =>
+          prev.map(u => (u._id === selectedUser._id ? updatedUser : u))
+        );
+      } else {
+        // Create new user
+        const createData: CreateUserData = {
+          email: formData.email,
+          password: formData.password!,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone,
+          role: formData.roleId,
+          userType: formData.userType,
+          status: formData.status,
+          clientId: formData.clientId
+        };
+
+        const newUser = await userService.create(createData);
+        setUsers(prev => [...prev, newUser]);
+      }
+
+      setIsModalOpen(false);
+      setSelectedUser(undefined);
+    } catch (err) {
+      const errorMsg = getErrorMessage(err);
+      setError(errorMsg);
+      console.error('Failed to save user:', err);
+      throw err; // Re-throw so modal can show error
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleConfirmDelete = () => {
-    if (userToDelete) {
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+
+    try {
+      setActionLoading(true);
+      setError(null);
+
+      await userService.delete(userToDelete._id);
       setUsers(prev => prev.filter(u => u._id !== userToDelete._id));
       setIsDeleteModalOpen(false);
       setUserToDelete(undefined);
+    } catch (err) {
+      const errorMsg = getErrorMessage(err);
+      setError(errorMsg);
+      console.error('Failed to delete user:', err);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   return (
     <div>
-      {/* Stats Cards */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-purple-600 font-medium">Total Users</p>
-              <p className="text-2xl font-bold text-purple-900 mt-1">{totalUsers}</p>
-            </div>
-            <div className="w-12 h-12 bg-purple-200 rounded-lg flex items-center justify-center">
-              <Users className="w-6 h-6 text-purple-600" />
-            </div>
+      {/* Error Message */}
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-red-800">Error</p>
+            <p className="text-sm text-red-700 mt-1">{error}</p>
           </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-green-600 font-medium">Active</p>
-              <p className="text-2xl font-bold text-green-900 mt-1">{activeUsers}</p>
-            </div>
-            <div className="w-12 h-12 bg-green-200 rounded-lg flex items-center justify-center">
-              <Users className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-blue-600 font-medium">Admin Users</p>
-              <p className="text-2xl font-bold text-blue-900 mt-1">{adminUsers}</p>
-            </div>
-            <div className="w-12 h-12 bg-blue-200 rounded-lg flex items-center justify-center">
-              <Shield className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-xl border border-orange-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-orange-600 font-medium">Client Users</p>
-              <p className="text-2xl font-bold text-orange-900 mt-1">{clientUsers}</p>
-            </div>
-            <div className="w-12 h-12 bg-orange-200 rounded-lg flex items-center justify-center">
-              <Users className="w-6 h-6 text-orange-600" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Header with Search and Filters */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900">All Users</h2>
           <button
-            onClick={handleCreate}
-            className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+            onClick={() => setError(null)}
+            className="ml-auto text-red-600 hover:text-red-800"
           >
-            <Plus size={18} />
-            Add User
+            <X size={18} />
           </button>
         </div>
+      )}
 
-        <div className="flex items-center gap-4">
-          {/* Search */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Search by name or email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-
-          {/* Status Filter */}
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as any)}
-            className="px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="pending">Pending</option>
-            <option value="suspended">Suspended</option>
-          </select>
-
-          {/* Type Filter */}
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value as any)}
-            className="px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-          >
-            <option value="all">All Types</option>
-            <option value="admin">Admin</option>
-            <option value="client">Client</option>
-          </select>
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 text-purple-600 animate-spin" />
         </div>
-      </div>
+      )}
 
-      {/* Users Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                User
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Role
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Type
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Last Login
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredUsers.map((user) => (
-              <tr key={user._id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-3">
-                    <Avatar user={user} />
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {user.firstName} {user.lastName}
-                      </p>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Mail size={14} />
-                        {user.email}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <Shield size={14} className="text-gray-400" />
-                    <span className="text-sm text-gray-900">{user.role.displayName}</span>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    user.userType === 'admin'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-orange-100 text-orange-700'
-                  }`}>
-                    {user.userType === 'admin' ? 'Admin' : 'Client'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <StatusBadge status={user.status} />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formatLastLogin(user.lastLogin)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => handleEdit(user)}
-                      className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(user)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Stats Cards */}
+      {!loading && (
+        <>
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-purple-600 font-medium">Total Users</p>
+                  <p className="text-2xl font-bold text-purple-900 mt-1">{totalUsers}</p>
+                </div>
+                <div className="w-12 h-12 bg-purple-200 rounded-lg flex items-center justify-center">
+                  <Users className="w-6 h-6 text-purple-600" />
+                </div>
+              </div>
+            </div>
 
-        {filteredUsers.length === 0 && (
-          <div className="text-center py-12">
-            <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No users found</p>
+            <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-green-600 font-medium">Active</p>
+                  <p className="text-2xl font-bold text-green-900 mt-1">{activeUsers}</p>
+                </div>
+                <div className="w-12 h-12 bg-green-200 rounded-lg flex items-center justify-center">
+                  <Users className="w-6 h-6 text-green-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-blue-600 font-medium">Admin Users</p>
+                  <p className="text-2xl font-bold text-blue-900 mt-1">{adminUsers}</p>
+                </div>
+                <div className="w-12 h-12 bg-blue-200 rounded-lg flex items-center justify-center">
+                  <Shield className="w-6 h-6 text-blue-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-xl border border-orange-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-orange-600 font-medium">Client Users</p>
+                  <p className="text-2xl font-bold text-orange-900 mt-1">{clientUsers}</p>
+                </div>
+                <div className="w-12 h-12 bg-orange-200 rounded-lg flex items-center justify-center">
+                  <Users className="w-6 h-6 text-orange-600" />
+                </div>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Header with Search and Filters */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">All Users</h2>
+              <button
+                onClick={handleCreate}
+                className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+              >
+                <Plus size={18} />
+                Add User
+              </button>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {/* Search */}
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              {/* Status Filter */}
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value as any)}
+                className="px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="suspended">Suspended</option>
+              </select>
+
+              {/* Type Filter */}
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value as any)}
+                className="px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="all">All Types</option>
+                <option value="admin">Admin</option>
+                <option value="client">Client</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Users Table */}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    User
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Role
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Last Login
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredUsers.map((user) => (
+                  <tr key={user._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <Avatar user={user} />
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {user.firstName} {user.lastName}
+                          </p>
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <Mail size={14} />
+                            {user.email}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <Shield size={14} className="text-gray-400" />
+                        <span className="text-sm text-gray-900">{user.role.displayName}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        user.userType === 'admin'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-orange-100 text-orange-700'
+                      }`}>
+                        {user.userType === 'admin' ? 'Admin' : 'Client'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <StatusBadge status={user.status} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatLastLogin(user.lastLogin)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleEdit(user)}
+                          className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(user)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {filteredUsers.length === 0 && (
+              <div className="text-center py-12">
+                <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No users found</p>
+              </div>
+            )}
+          </div>
+
+        </>
+      )}
 
       {/* Modals */}
       <UserFormModal
@@ -812,7 +1002,7 @@ export default function UserManagement() {
         onClose={() => setIsModalOpen(false)}
         onSave={handleSave}
         user={selectedUser}
-        roles={mockRoles}
+        roles={roles}
       />
 
       <DeleteConfirmModal

@@ -1,21 +1,22 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus,
   Search,
-  Filter,
   Edit2,
   Trash2,
-  MoreVertical,
-  DollarSign,
+  Eye,
   Calendar,
   TrendingDown,
   FileText,
   Download
 } from 'lucide-react';
 import AddExpenseModal from './AddExpenseModal';
+import ViewExpenseModal from './ViewExpenseModal';
+import EditExpenseModal from './EditExpenseModal';
 import type { Expense } from './types';
+import { financialService } from '@/services/financialService';
 
 interface ExpenseManagementProps {
   expenses: Expense[];
@@ -38,10 +39,42 @@ const expenseCategoryLabels: Record<string, string> = {
 };
 
 export default function ExpenseManagement({ expenses, onExpensesChange }: ExpenseManagementProps) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<Array<{value: string, label: string}>>([]);
+
+  // Load expenses from backend
+  useEffect(() => {
+    loadExpenses();
+    loadCategories();
+  }, []);
+
+  const loadExpenses = async () => {
+    try {
+      setLoading(true);
+      const response = await financialService.getAllExpenses({ limit: 100 });
+      onExpensesChange(response.data.expenses || []);
+    } catch (error) {
+      console.error('Failed to load expenses:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const data = await financialService.getExpenseCategories();
+      setCategories(data.map(cat => ({ value: cat.value, label: cat.label })));
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+    }
+  };
 
   const filteredExpenses = expenses.filter(expense => {
     const matchesSearch =
@@ -76,13 +109,34 @@ export default function ExpenseManagement({ expenses, onExpensesChange }: Expens
 
   const handleAddExpense = (newExpense: Expense) => {
     onExpensesChange([newExpense, ...expenses]);
-    setIsModalOpen(false);
+    setIsAddModalOpen(false);
   };
 
-  const handleDeleteExpense = (id: string) => {
+  const handleEditExpense = (updatedExpense: Expense) => {
+    onExpensesChange(expenses.map(e => e._id === updatedExpense._id ? updatedExpense : e));
+    setIsEditModalOpen(false);
+    setSelectedExpense(null);
+  };
+
+  const handleDeleteExpense = async (id: string) => {
     if (confirm('Are you sure you want to delete this expense?')) {
-      onExpensesChange(expenses.filter(e => e._id !== id));
+      try {
+        await financialService.deleteExpense(id);
+        onExpensesChange(expenses.filter(e => e._id !== id));
+      } catch (error: any) {
+        alert(error.message || 'Failed to delete expense');
+      }
     }
+  };
+
+  const handleViewExpense = (expense: Expense) => {
+    setSelectedExpense(expense);
+    setIsViewModalOpen(true);
+  };
+
+  const handleEditClick = (expense: Expense) => {
+    setSelectedExpense(expense);
+    setIsEditModalOpen(true);
   };
 
   return (
@@ -115,7 +169,7 @@ export default function ExpenseManagement({ expenses, onExpensesChange }: Expens
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-gray-900">Expense Records</h3>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => setIsAddModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
           >
             <Plus size={18} />
@@ -141,8 +195,8 @@ export default function ExpenseManagement({ expenses, onExpensesChange }: Expens
             className="px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
             <option value="all">All Categories</option>
-            {Object.entries(expenseCategoryLabels).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
+            {categories.map(cat => (
+              <option key={cat.value} value={cat.value}>{cat.label}</option>
             ))}
           </select>
           <select
@@ -160,100 +214,116 @@ export default function ExpenseManagement({ expenses, onExpensesChange }: Expens
 
       {/* Expenses Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Date
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Description
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Category
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Amount
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredExpenses.map((expense) => (
-              <tr key={expense._id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-2 text-sm text-gray-900">
-                    <Calendar size={14} className="text-gray-400" />
-                    {formatDate(expense.date)}
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{expense.description}</p>
-                    {expense.invoiceNumber && (
-                      <p className="text-xs text-gray-500 mt-1">Invoice: {expense.invoiceNumber}</p>
-                    )}
-                    {expense.shipmentId && (
-                      <p className="text-xs text-blue-600 mt-1">Shipment: {expense.shipmentId}</p>
-                    )}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded-full">
-                    {expenseCategoryLabels[expense.category]}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-1">
-                    <TrendingDown size={14} className="text-red-500" />
-                    <span className="text-sm font-semibold text-gray-900">
-                      {formatCurrency(expense.amount)}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    expense.status === 'paid'
-                      ? 'bg-green-100 text-green-700'
-                      : expense.status === 'pending'
-                        ? 'bg-amber-100 text-amber-700'
-                        : 'bg-red-100 text-red-700'
-                  }`}>
-                    {expense.status.charAt(0).toUpperCase() + expense.status.slice(1)}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                      <Download size={16} />
-                    </button>
-                    <button className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors">
-                      <Edit2 size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteExpense(expense._id)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </td>
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+            <p className="text-gray-500 mt-4">Loading expenses...</p>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Date
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Description
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Category
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Amount
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredExpenses.map((expense) => (
+                <tr key={expense._id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2 text-sm text-gray-900">
+                      <Calendar size={14} className="text-gray-400" />
+                      {formatDate(expense.date)}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{expense.description}</p>
+                      {expense.invoiceNumber && (
+                        <p className="text-xs text-gray-500 mt-1">Invoice: {expense.invoiceNumber}</p>
+                      )}
+                      {expense.shipmentId && (
+                        <p className="text-xs text-blue-600 mt-1">Shipment: {expense.shipmentId}</p>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded-full">
+                      {categories.find(c => c.value === expense.category)?.label || expense.category}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-1">
+                      <TrendingDown size={14} className="text-red-500" />
+                      <span className="text-sm font-semibold text-gray-900">
+                        {formatCurrency(expense.amount)}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      expense.status === 'paid'
+                        ? 'bg-green-100 text-green-700'
+                        : expense.status === 'pending'
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-red-100 text-red-700'
+                    }`}>
+                      {expense.status.charAt(0).toUpperCase() + expense.status.slice(1)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => handleViewExpense(expense)}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="View"
+                      >
+                        <Eye size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleEditClick(expense)}
+                        className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                        title="Edit"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteExpense(expense._id)}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
 
-        {filteredExpenses.length === 0 && (
+        {!loading && filteredExpenses.length === 0 && (
           <div className="text-center py-12">
             <TrendingDown className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">No expenses found</p>
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => setIsAddModalOpen(true)}
               className="mt-4 text-purple-600 hover:text-purple-700 font-medium"
             >
               Add your first expense
@@ -262,12 +332,35 @@ export default function ExpenseManagement({ expenses, onExpensesChange }: Expens
         )}
       </div>
 
-      {/* Add Expense Modal */}
+      {/* Modals */}
       <AddExpenseModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
         onSave={handleAddExpense}
       />
+
+      {selectedExpense && (
+        <>
+          <ViewExpenseModal
+            isOpen={isViewModalOpen}
+            onClose={() => {
+              setIsViewModalOpen(false);
+              setSelectedExpense(null);
+            }}
+            expense={selectedExpense}
+          />
+
+          <EditExpenseModal
+            isOpen={isEditModalOpen}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              setSelectedExpense(null);
+            }}
+            onSave={handleEditExpense}
+            expense={selectedExpense}
+          />
+        </>
+      )}
     </div>
   );
 }

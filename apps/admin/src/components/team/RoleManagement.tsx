@@ -13,8 +13,12 @@ import {
   Users,
   Lock,
   Settings,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
+import { roleService, Role as RoleType } from '@/services/roleService';
+import { getErrorMessage } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 // Types
 interface Permission {
@@ -210,7 +214,8 @@ const RoleCard: React.FC<{
   role: Role;
   onEdit: (role: Role) => void;
   onDelete: (role: Role) => void;
-}> = ({ role, onEdit, onDelete }) => {
+  isSuperAdmin: boolean;
+}> = ({ role, onEdit, onDelete, isSuperAdmin }) => {
   const [expanded, setExpanded] = useState(false);
 
   const getPermissionCount = () => {
@@ -271,23 +276,25 @@ const RoleCard: React.FC<{
             >
               {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
             </button>
-            {!role.isSystem && (
+            {(!role.isSystem || isSuperAdmin) && (
               <>
                 <button
                   onClick={() => onEdit(role)}
                   className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                  title={role.isSystem ? 'Edit system role (Super Admin only)' : 'Edit role'}
                 >
                   <Edit2 size={18} />
                 </button>
                 <button
                   onClick={() => onDelete(role)}
                   className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title={role.isSystem ? 'Delete system role (Super Admin only)' : 'Delete role'}
                 >
                   <Trash2 size={18} />
                 </button>
               </>
             )}
-            {role.isSystem && (
+            {role.isSystem && !isSuperAdmin && (
               <button
                 onClick={() => onEdit(role)}
                 className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
@@ -689,12 +696,38 @@ const DeleteConfirmModal: React.FC<{
 
 // Main Component
 export default function RoleManagement() {
-  const [roles, setRoles] = useState<Role[]>(mockRoles);
+  const { user } = useAuth();
+  const [roles, setRoles] = useState<Role[]>([]);
   const [filterType, setFilterType] = useState<'all' | 'admin' | 'client'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | undefined>(undefined);
   const [roleToDelete, setRoleToDelete] = useState<Role | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Check if current user is super admin (has wildcard permission)
+  const isSuperAdmin = user?.role?.permissions?.includes('*') || false;
+
+  // Fetch roles on component mount
+  useEffect(() => {
+    fetchRoles();
+  }, []);
+
+  const fetchRoles = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await roleService.getAll();
+      setRoles(data);
+    } catch (err) {
+      setError(getErrorMessage(err));
+      console.error('Failed to fetch roles:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCreate = () => {
     setSelectedRole(undefined);
@@ -711,38 +744,67 @@ export default function RoleManagement() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleSave = (formData: RoleFormData) => {
-    if (selectedRole) {
-      // Update existing role
-      setRoles(prev =>
-        prev.map(r =>
-          r._id === selectedRole._id
-            ? {
-                ...r,
-                ...formData,
-                updatedAt: new Date().toISOString()
-              }
-            : r
-        )
-      );
-    } else {
-      // Create new role
-      const newRole: Role = {
-        _id: String(Date.now()),
-        ...formData,
-        isSystem: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      setRoles(prev => [...prev, newRole]);
+  const handleSave = async (formData: RoleFormData) => {
+    try {
+      setActionLoading(true);
+      setError(null);
+
+      if (selectedRole) {
+        // Check if trying to update a system role (only super admin can do this)
+        if (selectedRole.isSystem && !isSuperAdmin) {
+          setError('Cannot modify system role. Only Super Admin can modify system roles.');
+          setActionLoading(false);
+          return;
+        }
+
+        // Update existing role
+        const updatedRole = await roleService.update(selectedRole._id, formData);
+        setRoles(prev =>
+          prev.map(r => (r._id === selectedRole._id ? updatedRole : r))
+        );
+      } else {
+        // Create new role
+        const newRole = await roleService.create(formData);
+        setRoles(prev => [...prev, newRole]);
+      }
+
+      setIsModalOpen(false);
+      setSelectedRole(undefined);
+    } catch (err) {
+      const errorMsg = getErrorMessage(err);
+      setError(errorMsg);
+      console.error('Failed to save role:', err);
+      throw err; // Re-throw so modal can show error
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleConfirmDelete = () => {
-    if (roleToDelete) {
+  const handleConfirmDelete = async () => {
+    if (!roleToDelete) return;
+
+    // Check if trying to delete a system role (only super admin can do this)
+    if (roleToDelete.isSystem && !isSuperAdmin) {
+      setError('Cannot delete system role. Only Super Admin can delete system roles.');
+      setIsDeleteModalOpen(false);
+      setRoleToDelete(undefined);
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      setError(null);
+
+      await roleService.delete(roleToDelete._id);
       setRoles(prev => prev.filter(r => r._id !== roleToDelete._id));
       setIsDeleteModalOpen(false);
       setRoleToDelete(undefined);
+    } catch (err) {
+      const errorMsg = getErrorMessage(err);
+      setError(errorMsg);
+      console.error('Failed to delete role:', err);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -761,64 +823,94 @@ export default function RoleManagement() {
         </div>
         <button
           onClick={handleCreate}
-          className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus size={18} />
           Create Role
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-2 mb-6">
-        <button
-          onClick={() => setFilterType('all')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            filterType === 'all'
-              ? 'bg-purple-600 text-white'
-              : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-          }`}
-        >
-          All Roles ({roles.length})
-        </button>
-        <button
-          onClick={() => setFilterType('admin')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            filterType === 'admin'
-              ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-          }`}
-        >
-          Admin Roles ({roles.filter(r => r.userType === 'admin').length})
-        </button>
-        <button
-          onClick={() => setFilterType('client')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            filterType === 'client'
-              ? 'bg-green-600 text-white'
-              : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-          }`}
-        >
-          Client Roles ({roles.filter(r => r.userType === 'client').length})
-        </button>
-      </div>
-
-      {/* Role Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredRoles.map(role => (
-          <RoleCard
-            key={role._id}
-            role={role}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-        ))}
-      </div>
-
-      {filteredRoles.length === 0 && (
-        <div className="text-center py-12">
-          <Shield className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500">No roles found</p>
+      {/* Error Message */}
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-red-800">Error</p>
+            <p className="text-sm text-red-700 mt-1">{error}</p>
+          </div>
+          <button
+            onClick={() => setError(null)}
+            className="ml-auto text-red-600 hover:text-red-800"
+          >
+            <X size={18} />
+          </button>
         </div>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 text-purple-600 animate-spin" />
+        </div>
+      )}
+
+      {/* Filters */}
+      {!loading && (
+        <>
+          <div className="flex items-center gap-2 mb-6">
+            <button
+              onClick={() => setFilterType('all')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                filterType === 'all'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              All Roles ({roles.length})
+            </button>
+            <button
+              onClick={() => setFilterType('admin')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                filterType === 'admin'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              Admin Roles ({roles.filter(r => r.userType === 'admin').length})
+            </button>
+            <button
+              onClick={() => setFilterType('client')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                filterType === 'client'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              Client Roles ({roles.filter(r => r.userType === 'client').length})
+            </button>
+          </div>
+
+          {/* Role Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredRoles.map(role => (
+              <RoleCard
+                key={role._id}
+                role={role}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                isSuperAdmin={isSuperAdmin}
+              />
+            ))}
+          </div>
+
+          {filteredRoles.length === 0 && (
+            <div className="text-center py-12">
+              <Shield className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No roles found</p>
+            </div>
+          )}
+        </>
       )}
 
       {/* Modals */}

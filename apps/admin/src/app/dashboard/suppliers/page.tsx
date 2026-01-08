@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import StatCard from '@/components/dashboard/StatCard';
 import { Button, Badge, Avatar } from '@/components/ui';
 import AddSupplierModal from '@/components/suppliers/AddSupplierModal';
-import { mockSuppliers } from '@/lib/mockData';
+import { supplierService, Supplier } from '@/services/supplierService';
+import { useAuth } from '@/context/AuthContext';
 import {
   Truck,
   CheckCircle2,
@@ -25,10 +26,15 @@ import {
   Warehouse,
   FileCheck,
   Zap,
+  Edit2,
+  Trash2,
+  Loader2,
+  AlertTriangle,
+  Eye,
 } from 'lucide-react';
-import { Supplier, ServiceType } from '@/types';
 
 type TabType = 'all' | 'active' | 'inactive' | 'top';
+type ServiceType = 'ocean_freight' | 'air_sea' | 'container' | 'port_ops' | 'warehouse' | 'customs' | 'ground' | 'express';
 
 const serviceTypeIcons: Record<ServiceType, React.ReactNode> = {
   ocean_freight: <Ship className="h-4 w-4" />,
@@ -53,48 +59,151 @@ const serviceTypeLabels: Record<ServiceType, string> = {
 };
 
 export default function SuppliersPage() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>(mockSuppliers);
+  const { user } = useAuth();
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [serviceFilter, setServiceFilter] = useState<string>('all');
   const [isAddSupplierModalOpen, setIsAddSupplierModalOpen] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [modalMode, setModalMode] = useState<'add' | 'edit' | 'view'>('add');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Check if user is Super Admin (has wildcard permission)
+  const isSuperAdmin = user?.role?.permissions?.some((p: string) => p === '*') || false;
+
+  // Check if user has write permission
+  const hasWritePermission = user?.role?.permissions?.some(
+    (p: string) => p === '*' || p === 'suppliers:write'
+  ) || false;
+
+  // Fetch suppliers
+  useEffect(() => {
+    fetchSuppliers();
+  }, []);
+
+  const fetchSuppliers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await supplierService.getAll({ limit: 1000 });
+      setSuppliers(response.data?.suppliers || []);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load suppliers');
+      console.error('Error fetching suppliers:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Calculate stats
   const totalSuppliers = suppliers.length;
   const activeSuppliers = suppliers.filter(s => s.status === 'active').length;
-  const totalContracts = suppliers.reduce((sum, s) => sum + s.activeContracts, 0);
-  const avgOnTimeRate = 95; // This would come from actual data
+  const totalContracts = suppliers.reduce((sum, s) => sum + (s.performanceMetrics?.activeContracts || 0), 0);
+  const avgOnTimeRate = suppliers.length > 0
+    ? Math.round(suppliers.reduce((sum, s) => sum + (s.performanceMetrics?.onTimeRate || 0), 0) / suppliers.length)
+    : 0;
 
   // Filter suppliers based on search, tab, and service filter
   const filteredSuppliers = suppliers.filter((supplier) => {
+    const fullName = `${supplier.contactPerson.firstName} ${supplier.contactPerson.lastName}`;
+    const location = `${supplier.address.city}, ${supplier.address.country}`;
+
     const matchesSearch =
       searchQuery === '' ||
       supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      supplier.contactPerson.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      supplier.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      supplier.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      serviceTypeLabels[supplier.serviceType].toLowerCase().includes(searchQuery.toLowerCase());
+      supplier.supplierId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (supplier.tradingName && supplier.tradingName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      supplier.contactPerson.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      supplier.serviceTypes.some(st => serviceTypeLabels[st]?.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesTab =
       activeTab === 'all' ||
       (activeTab === 'active' && supplier.status === 'active') ||
       (activeTab === 'inactive' && supplier.status === 'inactive') ||
-      (activeTab === 'top' && supplier.rating >= 4.7);
+      (activeTab === 'top' && (supplier.rating || 0) >= 4.7);
 
     const matchesService =
-      serviceFilter === 'all' || supplier.serviceType === serviceFilter;
+      serviceFilter === 'all' || supplier.serviceTypes.includes(serviceFilter as ServiceType);
 
     return matchesSearch && matchesTab && matchesService;
   });
 
   // Sort top performers by rating
   const displaySuppliers = activeTab === 'top'
-    ? [...filteredSuppliers].sort((a, b) => b.rating - a.rating)
+    ? [...filteredSuppliers].sort((a, b) => (b.rating || 0) - (a.rating || 0))
     : filteredSuppliers;
 
-  const handleAddSupplier = (data: any) => {
-    console.log('New supplier:', data);
-    // Here you would typically call an API to create the supplier
+  const handleAddSupplier = async (data: any) => {
+    try {
+      await supplierService.create(data);
+      await fetchSuppliers();
+      setIsAddSupplierModalOpen(false);
+    } catch (err: any) {
+      console.error('Error creating supplier:', err);
+      alert(err.message || 'Failed to create supplier');
+    }
+  };
+
+  const handleEditSupplier = async (data: any) => {
+    if (!editingSupplier) return;
+    try {
+      await supplierService.update(editingSupplier._id, data);
+      await fetchSuppliers();
+      setEditingSupplier(null);
+      setIsAddSupplierModalOpen(false);
+    } catch (err: any) {
+      console.error('Error updating supplier:', err);
+      alert(err.message || 'Failed to update supplier');
+    }
+  };
+
+  const handleDeleteSupplier = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this supplier?')) return;
+
+    try {
+      setDeletingId(id);
+      await supplierService.delete(id);
+      await fetchSuppliers();
+    } catch (err: any) {
+      console.error('Error deleting supplier:', err);
+      alert(err.message || 'Failed to delete supplier');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const openAddModal = () => {
+    setModalMode('add');
+    setEditingSupplier(null);
+    setIsAddSupplierModalOpen(true);
+  };
+
+  const openEditModal = (supplier: Supplier) => {
+    setModalMode('edit');
+    setEditingSupplier(supplier);
+    setIsAddSupplierModalOpen(true);
+  };
+
+  const openViewModal = (supplier: Supplier) => {
+    setModalMode('view');
+    setEditingSupplier(supplier);
+    setIsAddSupplierModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setEditingSupplier(null);
+    setIsAddSupplierModalOpen(false);
+  };
+
+  const handleSubmit = async (data: any) => {
+    if (modalMode === 'view') return; // No submission in view mode
+    if (modalMode === 'edit') return handleEditSupplier(data);
+    return handleAddSupplier(data);
   };
 
   const getStatusBadgeVariant = (status: string): 'success' | 'warning' | 'info' => {
@@ -229,146 +338,217 @@ export default function SuppliersPage() {
                 Export
               </Button>
 
-              <Button
-                variant="primary"
-                leftIcon={<Plus className="h-4 w-4" />}
-                onClick={() => setIsAddSupplierModalOpen(true)}
-              >
-                Add Supplier
-              </Button>
+              {hasWritePermission && (
+                <Button
+                  variant="primary"
+                  leftIcon={<Plus className="h-4 w-4" />}
+                  onClick={openAddModal}
+                >
+                  Add Supplier
+                </Button>
+              )}
             </div>
           </div>
         </div>
 
         {/* Suppliers Table */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Supplier
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Contact Person
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Contact Info
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Location
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Service Type
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Performance
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Rating
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {displaySuppliers.map((supplier) => (
-                  <tr
-                    key={supplier.id}
-                    className="hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar name={supplier.name} size="md" />
-                        <div>
-                          <div className="text-sm font-semibold text-gray-900">
-                            {supplier.name}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {supplier.id}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+            </div>
+          )}
 
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {supplier.contactPerson}
-                      </div>
-                    </td>
+          {error && (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-1">Error loading suppliers</h3>
+                <p className="text-gray-500 mb-4">{error}</p>
+                <Button onClick={fetchSuppliers} variant="primary">
+                  Try Again
+                </Button>
+              </div>
+            </div>
+          )}
 
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-sm text-gray-900">
-                          <Mail className="h-4 w-4 text-gray-400" />
-                          {supplier.email}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Phone className="h-4 w-4 text-gray-400" />
-                          {supplier.phone}
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-sm text-gray-900">
-                        <MapPin className="h-4 w-4 text-gray-400" />
-                        {supplier.location}
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <div className="text-purple-600">
-                          {serviceTypeIcons[supplier.serviceType]}
-                        </div>
-                        <span className="text-sm text-gray-900">
-                          {serviceTypeLabels[supplier.serviceType]}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <div className="text-sm">
-                        <div className="font-semibold text-gray-900">
-                          {supplier.shipmentsCount}
-                        </div>
-                        <div className="text-gray-600">
-                          shipments
-                        </div>
-                        <div className="text-gray-600 mt-1">
-                          {supplier.activeContracts} active
-                        </div>
-                        <div className="text-gray-600">
-                          contracts
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {renderRating(supplier.rating)}
-                    </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge variant={getStatusBadgeVariant(supplier.status)}>
-                        {formatStatus(supplier.status)}
-                      </Badge>
-                    </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button className="text-purple-600 hover:text-purple-700 font-medium text-sm">
-                        View Details
-                      </button>
-                    </td>
+          {!loading && !error && (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Supplier
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Contact Person
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Contact Info
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Location
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Service Types
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Performance
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Rating
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {displaySuppliers.map((supplier) => (
+                    <tr
+                      key={supplier._id}
+                      className="hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar name={supplier.name} size="md" />
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900">
+                              {supplier.name}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {supplier.supplierId}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {supplier.contactPerson.firstName} {supplier.contactPerson.lastName}
+                        </div>
+                        {supplier.contactPerson.position && (
+                          <div className="text-xs text-gray-500">
+                            {supplier.contactPerson.position}
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-sm text-gray-900">
+                            <Mail className="h-4 w-4 text-gray-400" />
+                            {supplier.contactPerson.email}
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Phone className="h-4 w-4 text-gray-400" />
+                            {supplier.contactPerson.phone}
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 text-sm text-gray-900">
+                          <MapPin className="h-4 w-4 text-gray-400" />
+                          {supplier.address.city}, {supplier.address.country}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-1">
+                          {supplier.serviceTypes.slice(0, 2).map((st) => (
+                            <div key={st} className="flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 rounded text-xs">
+                              {serviceTypeIcons[st]}
+                              <span>{serviceTypeLabels[st]}</span>
+                            </div>
+                          ))}
+                          {supplier.serviceTypes.length > 2 && (
+                            <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
+                              +{supplier.serviceTypes.length - 2}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="text-sm">
+                          <div className="font-semibold text-gray-900">
+                            {supplier.performanceMetrics?.totalShipments || 0}
+                          </div>
+                          <div className="text-gray-600">
+                            shipments
+                          </div>
+                          <div className="text-gray-600 mt-1">
+                            {supplier.performanceMetrics?.activeContracts || 0} active
+                          </div>
+                          <div className="text-gray-600">
+                            contracts
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {renderRating(supplier.rating || 0)}
+                      </td>
+
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <Badge variant={getStatusBadgeVariant(supplier.status)}>
+                          {formatStatus(supplier.status)}
+                        </Badge>
+                      </td>
+
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          {isSuperAdmin ? (
+                            <>
+                              <button
+                                onClick={() => openViewModal(supplier)}
+                                className="p-1.5 text-purple-600 hover:bg-purple-50 rounded transition-colors"
+                                title="View"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => openEditModal(supplier)}
+                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                title="Edit"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSupplier(supplier._id)}
+                                disabled={deletingId === supplier._id}
+                                className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                                title="Delete"
+                              >
+                                {deletingId === supplier._id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => openViewModal(supplier)}
+                              className="flex items-center gap-1 text-purple-600 hover:text-purple-700 font-medium text-sm"
+                              title="View Details"
+                            >
+                              <Eye className="h-4 w-4" />
+                              View
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Empty State */}
           {displaySuppliers.length === 0 && (
@@ -392,11 +572,13 @@ export default function SuppliersPage() {
         )}
       </div>
 
-      {/* Add Supplier Modal */}
+      {/* Add/Edit/View Supplier Modal */}
       <AddSupplierModal
         isOpen={isAddSupplierModalOpen}
-        onClose={() => setIsAddSupplierModalOpen(false)}
-        onSubmit={handleAddSupplier}
+        onClose={closeModal}
+        onSubmit={handleSubmit}
+        editingSupplier={editingSupplier}
+        mode={modalMode}
       />
     </DashboardLayout>
   );

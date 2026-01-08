@@ -71,4 +71,17 @@ router.delete(
   userController.deleteUser
 );
 
+/**
+ * @swagger
+ * /api/users/{id}/password:
+ *   put:
+ *     summary: Update user password
+ *     tags: [Users]
+ */
+router.put(
+  '/:id/password',
+  hasPermission('users:write'),
+  userController.updateUserPassword
+);
+
 module.exports = router;

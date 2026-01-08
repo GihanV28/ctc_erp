@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AuthLayout from '@/components/layout/AuthLayout';
 import { Button, Input } from '@/components/ui';
-import { Mail, Lock, AlertCircle } from 'lucide-react';
+import { Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 interface LoginFormData {
@@ -16,6 +16,7 @@ interface LoginFormData {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
@@ -25,6 +26,17 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<Partial<LoginFormData>>({});
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string>('');
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('registered') === 'true') {
+      setShowSuccess(true);
+      // Remove the query parameter after showing the message
+      setTimeout(() => {
+        router.replace('/login');
+      }, 5000);
+    }
+  }, [searchParams, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -82,13 +94,23 @@ export default function LoginPage() {
     <AuthLayout>
       <div className="bg-white p-8 rounded-2xl shadow-sm">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Login</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">Client Portal Login</h2>
           <p className="text-gray-600">
             Welcome back! Please enter your credentials
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {showSuccess && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+              <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-green-800">
+                <p className="font-semibold">Registration successful!</p>
+                <p className="mt-1">Your account has been created successfully. You can now log in with your credentials.</p>
+              </div>
+            </div>
+          )}
+
           {apiError && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
               <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -130,7 +152,7 @@ export default function LoginPage() {
                 className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 focus:ring-2 cursor-pointer"
               />
               <span className="ml-2 text-sm text-gray-700 group-hover:text-gray-900">
-                Remember me?
+                Remember me
               </span>
             </label>
 
@@ -138,7 +160,7 @@ export default function LoginPage() {
               href="/forgot-password"
               className="text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors"
             >
-              Forgot Password
+              Forgot Password?
             </Link>
           </div>
 
@@ -153,16 +175,36 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            Don't have an account?{' '}
+        <div className="mt-6 space-y-4">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">New to Ceylon Cargo?</span>
+            </div>
+          </div>
+
+          <div className="text-center">
             <Link
               href="/signup"
-              className="font-medium text-purple-600 hover:text-purple-700 transition-colors"
+              className="inline-flex items-center justify-center w-full px-6 py-3 border-2 border-purple-600 text-purple-600 font-medium rounded-lg hover:bg-purple-50 transition-colors"
             >
-              Create one here
+              Create an Account
             </Link>
-          </p>
+          </div>
+
+          <div className="text-center">
+            <p className="text-xs text-gray-500">
+              Need help?{' '}
+              <Link
+                href="/contact"
+                className="font-medium text-purple-600 hover:text-purple-700 transition-colors"
+              >
+                Contact Support
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </AuthLayout>

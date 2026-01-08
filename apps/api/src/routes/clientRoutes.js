@@ -9,6 +9,15 @@ router.use(auth);
 
 /**
  * @swagger
+ * /api/clients/active/list:
+ *   get:
+ *     summary: Get active clients for dropdown
+ *     tags: [Clients]
+ */
+router.get('/active/list', hasPermission('shipments:write'), clientController.getActiveClients);
+
+/**
+ * @swagger
  * /api/clients:
  *   get:
  *     summary: Get all clients

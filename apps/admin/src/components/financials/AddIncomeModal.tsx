@@ -1,25 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, Check, DollarSign, TrendingUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Check, TrendingUp } from 'lucide-react';
 import type { Income, IncomeFormData, IncomeSource } from './types';
+import { financialService, type IncomeSource as IncomeSourceType } from '@/services/financialService';
 
 interface AddIncomeModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (income: Income) => void;
 }
-
-const incomeSources: { value: IncomeSource; label: string }[] = [
-  { value: 'freight_charges', label: 'Freight Charges' },
-  { value: 'handling_fees', label: 'Handling Fees' },
-  { value: 'storage_fees', label: 'Storage Fees' },
-  { value: 'documentation_fees', label: 'Documentation Fees' },
-  { value: 'insurance_charges', label: 'Insurance Charges' },
-  { value: 'late_payment_fees', label: 'Late Payment Fees' },
-  { value: 'other_services', label: 'Other Services' },
-  { value: 'other', label: 'Other Income' }
-];
 
 export default function AddIncomeModal({ isOpen, onClose, onSave }: AddIncomeModalProps) {
   const [formData, setFormData] = useState<IncomeFormData>({
@@ -39,8 +29,52 @@ export default function AddIncomeModal({ isOpen, onClose, onSave }: AddIncomeMod
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [sources, setSources] = useState<IncomeSourceType[]>([]);
+  const [showAddSource, setShowAddSource] = useState(false);
+  const [newSourceName, setNewSourceName] = useState('');
+  const [loadingSources, setLoadingSources] = useState(false);
+  const [creatingSource, setCreatingSource] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Load sources on mount
+  useEffect(() => {
+    if (isOpen) {
+      loadSources();
+    }
+  }, [isOpen]);
+
+  const loadSources = async () => {
+    try {
+      setLoadingSources(true);
+      const data = await financialService.getIncomeSources();
+      setSources(data);
+    } catch (error) {
+      console.error('Failed to load sources:', error);
+    } finally {
+      setLoadingSources(false);
+    }
+  };
+
+  const handleAddNewSource = async () => {
+    if (!newSourceName.trim()) {
+      alert('Please enter a source name');
+      return;
+    }
+
+    try {
+      setCreatingSource(true);
+      const newSource = await financialService.createIncomeSource(newSourceName.trim());
+      setSources([...sources, newSource]);
+      setFormData(prev => ({ ...prev, source: newSource.value as IncomeSource }));
+      setNewSourceName('');
+      setShowAddSource(false);
+    } catch (error: any) {
+      alert(error.message || 'Failed to create source');
+    } finally {
+      setCreatingSource(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
@@ -61,42 +95,47 @@ export default function AddIncomeModal({ isOpen, onClose, onSave }: AddIncomeMod
       return;
     }
 
-    const newIncome: Income = {
-      _id: Date.now().toString(),
-      source: formData.source as IncomeSource,
-      description: formData.description,
-      amount: parseFloat(formData.amount),
-      currency: formData.currency,
-      date: new Date(formData.date).toISOString(),
-      shipmentId: formData.shipmentId || undefined,
-      clientId: formData.clientId || undefined,
-      invoiceId: formData.invoiceId || undefined,
-      paymentMethod: formData.paymentMethod,
-      status: formData.status,
-      amountReceived: formData.amountReceived ? parseFloat(formData.amountReceived) : undefined,
-      dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : undefined,
-      notes: formData.notes || undefined,
-      createdBy: 'admin',
-      createdAt: new Date().toISOString()
-    };
+    try {
+      const incomeData = {
+        source: formData.source,
+        description: formData.description,
+        amount: parseFloat(formData.amount),
+        currency: formData.currency,
+        date: formData.date,
+        shipmentId: formData.shipmentId || undefined,
+        clientId: formData.clientId || undefined,
+        invoiceId: formData.invoiceId || undefined,
+        paymentMethod: formData.paymentMethod,
+        status: formData.status,
+        amountReceived: formData.amountReceived ? parseFloat(formData.amountReceived) : undefined,
+        dueDate: formData.dueDate || undefined,
+        notes: formData.notes || undefined,
+      };
 
-    onSave(newIncome);
-    setFormData({
-      source: '',
-      description: '',
-      amount: '',
-      currency: 'USD',
-      date: new Date().toISOString().split('T')[0],
-      shipmentId: '',
-      clientId: '',
-      invoiceId: '',
-      paymentMethod: 'Bank Transfer',
-      status: 'pending',
-      amountReceived: '',
-      dueDate: '',
-      notes: ''
-    });
-    setErrors({});
+      const createdIncome = await financialService.createIncome(incomeData);
+      onSave(createdIncome);
+
+      // Reset form
+      setFormData({
+        source: '',
+        description: '',
+        amount: '',
+        currency: 'USD',
+        date: new Date().toISOString().split('T')[0],
+        shipmentId: '',
+        clientId: '',
+        invoiceId: '',
+        paymentMethod: 'Bank Transfer',
+        status: 'pending',
+        amountReceived: '',
+        dueDate: '',
+        notes: ''
+      });
+      setErrors({});
+      onClose();
+    } catch (error: any) {
+      alert(error.message || 'Failed to create income');
+    }
   };
 
   if (!isOpen) return null;
@@ -127,18 +166,68 @@ export default function AddIncomeModal({ isOpen, onClose, onSave }: AddIncomeMod
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Income Source <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={formData.source}
-                  onChange={(e) => setFormData(prev => ({ ...prev, source: e.target.value as IncomeSource }))}
-                  className={`w-full px-4 py-2.5 rounded-lg border ${
-                    errors.source ? 'border-red-300' : 'border-gray-200'
-                  } focus:outline-none focus:ring-2 focus:ring-purple-500`}
-                >
-                  <option value="">Select income source</option>
-                  {incomeSources.map(source => (
-                    <option key={source.value} value={source.value}>{source.label}</option>
-                  ))}
-                </select>
+                {!showAddSource ? (
+                  <div className="relative">
+                    <select
+                      value={formData.source}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '__ADD_NEW__') {
+                          setShowAddSource(true);
+                        } else {
+                          setFormData(prev => ({ ...prev, source: value as IncomeSource }));
+                        }
+                      }}
+                      className={`w-full px-4 py-2.5 rounded-lg border ${
+                        errors.source ? 'border-red-300' : 'border-gray-200'
+                      } focus:outline-none focus:ring-2 focus:ring-purple-500`}
+                      disabled={loadingSources}
+                    >
+                      <option value="">
+                        {loadingSources ? 'Loading sources...' : 'Select income source'}
+                      </option>
+                      {sources.map(source => (
+                        <option key={source._id} value={source.value}>{source.label}</option>
+                      ))}
+                      <option value="__ADD_NEW__" className="font-semibold text-green-600">
+                        + Add New Source
+                      </option>
+                    </select>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newSourceName}
+                      onChange={(e) => setNewSourceName(e.target.value)}
+                      placeholder="Enter source name"
+                      className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      disabled={creatingSource}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddNewSource}
+                      disabled={creatingSource}
+                      className="px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {creatingSource ? (
+                        <span>...</span>
+                      ) : (
+                        <Check size={18} />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddSource(false);
+                        setNewSourceName('');
+                      }}
+                      className="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                )}
                 {errors.source && <p className="mt-1 text-xs text-red-500">{errors.source}</p>}
               </div>
 

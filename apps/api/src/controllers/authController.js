@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Role = require('../models/Role');
+const Client = require('../models/Client');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
@@ -36,7 +37,7 @@ exports.register = asyncHandler(async (req, res, next) => {
     role: roleId,
     userType,
     clientId: userType === 'client' ? clientId : undefined,
-    status: 'pending',
+    status: 'active',
   });
 
   // Send welcome email (don't wait for it)
@@ -51,6 +52,85 @@ exports.register = asyncHandler(async (req, res, next) => {
   user.password = undefined;
 
   new ApiResponse(201, { user, ...tokens }, 'User registered successfully').send(res);
+});
+
+// Register client through portal (creates both User + Client)
+exports.registerClient = asyncHandler(async (req, res, next) => {
+  const { email, password, firstName, lastName, phone, companyName, address } = req.body;
+
+  // Validate required fields
+  if (!email || !password || !firstName || !lastName || !phone) {
+    return next(new ApiError('Please provide all required fields', 400));
+  }
+
+  if (!address || !address.city || !address.country) {
+    return next(new ApiError('Please provide city and country', 400));
+  }
+
+  // Check if user exists
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return next(new ApiError('Email already registered', 400));
+  }
+
+  // Find client role
+  const clientRole = await Role.findOne({ name: 'client', userType: 'client' });
+  if (!clientRole) {
+    return next(new ApiError('Client role not found. Please contact support', 500));
+  }
+
+  // Create Client record first
+  const client = await Client.create({
+    companyName: companyName || `${firstName} ${lastName}`,
+    contactPerson: {
+      firstName,
+      lastName,
+      email,
+      phone,
+    },
+    address: {
+      street: address.street || '',
+      city: address.city,
+      state: address.state || '',
+      postalCode: address.postalCode || '',
+      country: address.country,
+    },
+    source: 'portal',
+    status: 'active',
+    creditLimit: 0,
+    paymentTerms: 15,
+    tags: ['portal-user', 'self-registered'],
+  });
+
+  // Create User record linked to Client
+  const user = await User.create({
+    email,
+    password,
+    firstName,
+    lastName,
+    phone,
+    role: clientRole._id,
+    userType: 'client',
+    clientId: client._id,
+    status: 'active',
+  });
+
+  // Send welcome email
+  sendWelcomeEmail(user, password).catch((err) =>
+    console.error('Failed to send welcome email:', err)
+  );
+
+  // Generate tokens
+  const tokens = generateTokens(user._id);
+
+  // Remove password from response
+  user.password = undefined;
+
+  new ApiResponse(
+    201,
+    { user, client, ...tokens },
+    'Registration successful! You can now login to your account.'
+  ).send(res);
 });
 
 // Login

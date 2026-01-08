@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import {
   Building2,
@@ -19,15 +19,26 @@ import {
   Lock,
   Smartphone,
   Monitor,
+  Upload,
+  X,
+  Pencil,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Toggle from '@/components/ui/Toggle';
+import { useRouter } from 'next/navigation';
+import { settingsService } from '@/services/settingsService';
 
 type TabType = 'company' | 'profile' | 'notifications' | 'security' | 'system';
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('company');
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   // Company Information state
   const [companyInfo, setCompanyInfo] = useState({
@@ -70,10 +81,93 @@ export default function SettingsPage() {
   // System preferences state
   const [systemPrefs, setSystemPrefs] = useState({
     language: 'English',
-    timezone: 'Asia/Colombo (UTC+5:30)',
+    timezone: 'Asia/Phnom_Penh (UTC+7:00)',
     dateFormat: 'DD/MM/YYYY',
-    currency: 'LKR (Rs)',
+    currency: 'USD ($)',
   });
+
+  // Check if user is super admin and load settings
+  useEffect(() => {
+    const loadSettings = async () => {
+      const user = localStorage.getItem('user');
+      if (user) {
+        const parsedUser = JSON.parse(user);
+        setCurrentUser(parsedUser);
+
+        // Check if user has super_admin role or wildcard permissions
+        const hasAccess = parsedUser.role?.name === 'super_admin' ||
+                         parsedUser.role?.permissions?.includes('*:*');
+
+        if (!hasAccess) {
+          router.push('/dashboard');
+          return;
+        }
+
+        // Load settings data from backend
+        try {
+          const [companyResponse, notificationsResponse, systemResponse] = await Promise.all([
+            settingsService.getCompanyInfo(),
+            settingsService.getNotifications(),
+            settingsService.getSystemPreferences()
+          ]);
+
+          // Update company info state
+          if (companyResponse.data?.companyInfo) {
+            const info = companyResponse.data.companyInfo;
+            setCompanyInfo({
+              name: info.companyName || 'Ceylon Cargo Transport',
+              registrationNumber: info.taxId || 'CCT-2024-001',
+              email: info.companyEmail || 'info@ceyloncargo.lk',
+              phone: info.companyPhone || '+94 11 234 5678',
+              address: info.companyAddress || '123 Marine Drive, Fort, Colombo 01, Sri Lanka',
+              website: info.website || 'www.ceyloncargo.lk',
+              industry: 'Logistics & Transportation',
+            });
+          }
+
+          // Update user profile state
+          setUserProfile({
+            firstName: parsedUser.firstName || 'Super',
+            lastName: parsedUser.lastName || 'Admin',
+            email: parsedUser.email || 'admin@ceyloncargo.lk',
+            phone: parsedUser.phone || '+94 77 123 4567',
+            role: parsedUser.role?.displayName || 'Super Administrator',
+            department: 'Management',
+          });
+
+          // Update notification preferences
+          if (notificationsResponse.data?.notificationPreferences) {
+            const prefs = notificationsResponse.data.notificationPreferences;
+            setNotifications({
+              shipmentUpdates: prefs.shipmentUpdates ?? true,
+              newClientRegistration: true,
+              containerMaintenance: true,
+              financialReports: prefs.invoiceAlerts ?? false,
+              systemUpdates: prefs.systemUpdates ?? true,
+              emailDigest: prefs.newsletter ?? true,
+            });
+          }
+
+          // Update system preferences
+          if (systemResponse.data?.systemPreferences) {
+            const sysprefs = systemResponse.data.systemPreferences;
+            setSystemPrefs({
+              language: sysprefs.language || 'English',
+              timezone: sysprefs.timezone || 'Asia/Phnom_Penh (UTC+7:00)',
+              dateFormat: sysprefs.dateFormat || 'DD/MM/YYYY',
+              currency: sysprefs.currency || 'USD ($)',
+            });
+          }
+        } catch (error) {
+          console.error('Failed to load settings:', error);
+          // Continue with default values if loading fails
+        }
+      }
+      setLoading(false);
+    };
+
+    loadSettings();
+  }, [router]);
 
   const tabs = [
     { id: 'company', label: 'Company Information', icon: Building2 },
@@ -83,19 +177,73 @@ export default function SettingsPage() {
     { id: 'system', label: 'System', icon: SettingsIcon },
   ];
 
-  const handleSaveCompanyInfo = () => {
-    alert('Company information saved successfully!');
+  const handleSaveCompanyInfo = async () => {
+    try {
+      setLoading(true);
+      await settingsService.updateCompanyInfo({
+        companyName: companyInfo.name,
+        companyEmail: companyInfo.email,
+        companyPhone: companyInfo.phone,
+        companyAddress: companyInfo.address,
+        website: companyInfo.website,
+        taxId: companyInfo.registrationNumber,
+      });
+      alert('Company information saved successfully!');
+    } catch (error: any) {
+      console.error('Failed to save company info:', error);
+      alert(error.response?.data?.message || 'Failed to save company information');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSaveProfile = () => {
-    alert('Profile updated successfully!');
+  const handleSaveProfile = async () => {
+    try {
+      setLoading(true);
+      const response = await settingsService.updateProfile({
+        firstName: userProfile.firstName,
+        lastName: userProfile.lastName,
+        email: userProfile.email,
+        phone: userProfile.phone,
+      });
+
+      // Update local storage with new user data
+      if (response.data?.user) {
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        setCurrentUser(response.data.user);
+      }
+
+      alert('Profile updated successfully!');
+    } catch (error: any) {
+      console.error('Failed to save profile:', error);
+      alert(error.response?.data?.message || 'Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSaveNotifications = () => {
-    alert('Notification preferences saved successfully!');
+  const handleSaveNotifications = async () => {
+    try {
+      setLoading(true);
+      await settingsService.updateNotifications({
+        emailNotifications: true,
+        pushNotifications: true,
+        smsNotifications: false,
+        shipmentUpdates: notifications.shipmentUpdates,
+        invoiceAlerts: notifications.financialReports,
+        systemUpdates: notifications.systemUpdates,
+        newsletter: notifications.emailDigest,
+      });
+      alert('Notification preferences saved successfully!');
+    } catch (error: any) {
+      console.error('Failed to save notifications:', error);
+      alert(error.response?.data?.message || 'Failed to save notification preferences');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleUpdatePassword = () => {
+  const handleUpdatePassword = async () => {
     if (!passwords.current || !passwords.new || !passwords.confirm) {
       alert('Please fill in all password fields');
       return;
@@ -104,13 +252,170 @@ export default function SettingsPage() {
       alert('New passwords do not match');
       return;
     }
-    alert('Password updated successfully!');
-    setPasswords({ current: '', new: '', confirm: '' });
+    if (passwords.new.length < 6) {
+      alert('Password must be at least 6 characters long');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await settingsService.changePassword({
+        currentPassword: passwords.current,
+        newPassword: passwords.new,
+        confirmPassword: passwords.confirm,
+      });
+      alert('Password updated successfully!');
+      setPasswords({ current: '', new: '', confirm: '' });
+    } catch (error: any) {
+      console.error('Failed to change password:', error);
+      alert(error.response?.data?.message || 'Failed to change password');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSaveSystemPrefs = () => {
-    alert('System preferences saved successfully!');
+  const handleSaveSystemPrefs = async () => {
+    try {
+      setLoading(true);
+      await settingsService.updateSystemPreferences({
+        language: systemPrefs.language,
+        timezone: systemPrefs.timezone,
+        dateFormat: systemPrefs.dateFormat,
+        currency: systemPrefs.currency,
+      });
+      alert('System preferences saved successfully!');
+    } catch (error: any) {
+      console.error('Failed to save system preferences:', error);
+      alert(error.response?.data?.message || 'Failed to save system preferences');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleExportData = async () => {
+    try {
+      setLoading(true);
+      const response = await settingsService.exportData();
+
+      // Create a blob and download
+      const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ceylon-cargo-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      alert('Data exported successfully!');
+    } catch (error: any) {
+      console.error('Failed to export data:', error);
+      alert(error.response?.data?.message || 'Failed to export data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Photo upload handlers
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handlePhotoUpload(e.dataTransfer.files[0]);
+    }
+  }, []);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    if (e.target.files && e.target.files[0]) {
+      handlePhotoUpload(e.target.files[0]);
+    }
+  };
+
+  const handlePhotoUpload = async (file: File) => {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size should not exceed 5MB');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const response = await settingsService.uploadProfilePhoto(file);
+
+      // Update current user with new photo
+      if (currentUser && response.data?.profilePhoto) {
+        const updatedUser = { ...currentUser, profilePhoto: response.data.profilePhoto };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        setCurrentUser(updatedUser);
+      }
+
+      setShowUploadModal(false);
+      alert('Photo uploaded successfully!');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      alert(error.response?.data?.message || 'Failed to upload photo');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    if (!confirm('Are you sure you want to delete your profile picture?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await settingsService.deleteProfilePhoto();
+
+      // Update current user - remove profile photo
+      if (currentUser) {
+        const updatedUser = { ...currentUser, profilePhoto: null };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        setCurrentUser(updatedUser);
+      }
+
+      alert('Profile picture deleted successfully!');
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      alert(error.response?.data?.message || 'Failed to delete profile picture');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout title="Settings" subtitle="Manage your account and system preferences">
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
+            <p className="text-gray-600">Loading settings...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout
@@ -288,14 +593,37 @@ export default function SettingsPage() {
                 </h2>
 
                 <div className="flex flex-col md:flex-row gap-8">
-                  {/* Profile Photo */}
-                  <div className="flex flex-col items-center">
-                    <div className="h-24 w-24 rounded-full bg-orange-500 text-white flex items-center justify-center text-2xl font-semibold">
-                      SA
+                  {/* Profile Photo with Edit/Delete Icons */}
+                  <div className="flex flex-col items-center gap-4">
+                    {currentUser?.profilePhoto ? (
+                      <img
+                        src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${currentUser.profilePhoto}`}
+                        alt="Profile"
+                        className="h-24 w-24 rounded-full object-cover border-2 border-purple-200"
+                      />
+                    ) : (
+                      <div className="h-24 w-24 rounded-full bg-orange-500 text-white flex items-center justify-center text-2xl font-semibold">
+                        {userProfile.firstName?.[0]}{userProfile.lastName?.[0]}
+                      </div>
+                    )}
+
+                    {/* Edit and Delete Icons */}
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowUploadModal(true)}
+                        className="flex items-center justify-center w-10 h-10 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"
+                        title="Edit profile picture"
+                      >
+                        <Pencil className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={handleDeletePhoto}
+                        className="flex items-center justify-center w-10 h-10 rounded-full bg-red-100 hover:bg-red-200 text-red-600 transition-colors"
+                        title="Delete profile picture"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
                     </div>
-                    <button className="text-purple-600 text-sm font-medium mt-3 hover:text-purple-700">
-                      Change Photo
-                    </button>
                   </div>
 
                   {/* Profile Form */}
@@ -690,6 +1018,7 @@ export default function SettingsPage() {
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     >
+                      <option>Asia/Phnom_Penh (UTC+7:00)</option>
                       <option>Asia/Colombo (UTC+5:30)</option>
                       <option>Asia/Dubai (UTC+4:00)</option>
                       <option>Europe/London (UTC+0:00)</option>
@@ -725,10 +1054,10 @@ export default function SettingsPage() {
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     >
-                      <option>LKR (Rs)</option>
                       <option>USD ($)</option>
                       <option>EUR (€)</option>
                       <option>GBP (£)</option>
+                      <option>LKR (Rs)</option>
                     </select>
                   </div>
                 </div>
@@ -742,38 +1071,12 @@ export default function SettingsPage() {
                   <div className="space-y-4 max-w-2xl">
                     <Button
                       variant="outline"
-                      onClick={() => alert('Exporting all data...')}
+                      onClick={handleExportData}
                       className="w-full justify-center gap-2"
                     >
                       <Download className="w-4 h-4" />
                       Export All Data
                     </Button>
-
-                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                      <h4 className="text-sm font-medium text-red-900 mb-2">
-                        Delete Account
-                      </h4>
-                      <p className="text-sm text-red-700 mb-3">
-                        Once you delete your account, there is no going back. Please be
-                        certain.
-                      </p>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          if (
-                            confirm(
-                              'Are you sure you want to delete your account? This action cannot be undone.'
-                            )
-                          ) {
-                            alert('Account deletion request submitted');
-                          }
-                        }}
-                        className="text-red-600 border-red-300 hover:bg-red-50 gap-2"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Delete Account
-                      </Button>
-                    </div>
                   </div>
                 </div>
 
@@ -788,6 +1091,85 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Upload Photo Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-xl font-semibold text-gray-900">Upload Profile Picture</h3>
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              <div
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                className={`relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${
+                  dragActive
+                    ? 'border-purple-500 bg-purple-50'
+                    : 'border-gray-300 hover:border-purple-400 hover:bg-gray-50'
+                }`}
+              >
+                <input
+                  type="file"
+                  id="modal-photo-upload"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="modal-photo-upload"
+                  className="cursor-pointer flex flex-col items-center gap-3"
+                >
+                  <div className="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center">
+                    <Upload className="w-8 h-8 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-base font-medium text-gray-700">
+                      {uploading ? 'Uploading...' : 'Click to upload or drag & drop'}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      PNG, JPG up to 5MB
+                    </p>
+                  </div>
+                </label>
+                {uploading && (
+                  <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-lg">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600"></div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Tip:</strong> Use a square image for best results. Your photo will be displayed as a circle.
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+              <Button
+                variant="outline"
+                onClick={() => setShowUploadModal(false)}
+                disabled={uploading}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

@@ -13,6 +13,7 @@ export interface Client {
     position?: string;
     email: string;
     phone: string;
+    alternatePhone?: string;
   };
   address: {
     street?: string;
@@ -21,12 +22,24 @@ export interface Client {
     postalCode?: string;
     country: string;
   };
+  billingAddress?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+    sameAsAddress?: boolean;
+  };
   status: 'active' | 'inactive' | 'suspended';
-  creditLimit?: number;
-  currentBalance?: number;
-  currency?: string;
+  creditLimit: number;
+  currentBalance: number;
+  paymentTerms: 15 | 30 | 45 | 60 | 90;
   taxId?: string;
   registrationNumber?: string;
+  notes?: string;
+  tags?: string[];
+  preferredCurrency: string;
+  shipments?: any[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,6 +55,7 @@ export interface CreateClientData {
     position?: string;
     email: string;
     phone: string;
+    alternatePhone?: string;
   };
   address: {
     street?: string;
@@ -50,10 +64,22 @@ export interface CreateClientData {
     postalCode?: string;
     country: string;
   };
+  billingAddress?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+    sameAsAddress?: boolean;
+  };
+  status?: 'active' | 'inactive' | 'suspended';
   creditLimit?: number;
-  currency?: string;
+  paymentTerms?: 15 | 30 | 45 | 60 | 90;
   taxId?: string;
   registrationNumber?: string;
+  notes?: string;
+  tags?: string[];
+  preferredCurrency?: string;
 }
 
 export const clientService = {

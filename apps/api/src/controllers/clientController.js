@@ -53,7 +53,7 @@ exports.getClient = asyncHandler(async (req, res) => {
   const client = await Client.findById(req.params.id).populate('shipments');
 
   if (!client) {
-    throw new ApiError(404, 'Client not found');
+    throw new ApiError('Client not found', 404);
   }
 
   new ApiResponse(200, { client }, 'Client fetched successfully').send(res);
@@ -87,7 +87,7 @@ exports.createClient = asyncHandler(async (req, res) => {
     'contactPerson.email': contactPerson.email,
   });
   if (existingClient) {
-    throw new ApiError(400, 'Client with this email already exists');
+    throw new ApiError('Client with this email already exists', 400);
   }
 
   const client = await Client.create({
@@ -120,7 +120,7 @@ exports.updateClient = asyncHandler(async (req, res) => {
   const client = await Client.findById(req.params.id);
 
   if (!client) {
-    throw new ApiError(404, 'Client not found');
+    throw new ApiError('Client not found', 404);
   }
 
   // Check if email is being changed and if it's already in use
@@ -132,7 +132,7 @@ exports.updateClient = asyncHandler(async (req, res) => {
       'contactPerson.email': req.body.contactPerson.email,
     });
     if (existingClient) {
-      throw new ApiError(400, 'Email already in use by another client');
+      throw new ApiError('Email already in use by another client', 400);
     }
   }
 
@@ -176,7 +176,7 @@ exports.deleteClient = asyncHandler(async (req, res) => {
   const client = await Client.findById(req.params.id);
 
   if (!client) {
-    throw new ApiError(404, 'Client not found');
+    throw new ApiError('Client not found', 404);
   }
 
   // Check if client has any shipments
@@ -184,8 +184,8 @@ exports.deleteClient = asyncHandler(async (req, res) => {
   const shipmentsCount = await Shipment.countDocuments({ client: client._id });
   if (shipmentsCount > 0) {
     throw new ApiError(
-      400,
-      `Cannot delete client. ${shipmentsCount} shipment(s) are associated with this client`
+      `Cannot delete client. ${shipmentsCount} shipment(s) are associated with this client`,
+      400
     );
   }
 
@@ -193,8 +193,8 @@ exports.deleteClient = asyncHandler(async (req, res) => {
   const usersCount = await User.countDocuments({ clientId: client._id });
   if (usersCount > 0) {
     throw new ApiError(
-      400,
-      `Cannot delete client. ${usersCount} user(s) are associated with this client`
+      `Cannot delete client. ${usersCount} user(s) are associated with this client`,
+      400
     );
   }
 
@@ -212,7 +212,7 @@ exports.getClientStats = asyncHandler(async (req, res) => {
   const client = await Client.findById(req.params.id);
 
   if (!client) {
-    throw new ApiError(404, 'Client not found');
+    throw new ApiError('Client not found', 404);
   }
 
   const Shipment = require('../models/Shipment');
@@ -249,4 +249,17 @@ exports.getClientStats = asyncHandler(async (req, res) => {
   };
 
   new ApiResponse(200, { stats }, 'Client stats fetched successfully').send(res);
+});
+
+/**
+ * @desc    Get active clients for dropdown
+ * @route   GET /api/clients/active/list
+ * @access  Private (shipments:write)
+ */
+exports.getActiveClients = asyncHandler(async (req, res) => {
+  const clients = await Client.find({ status: 'active' })
+    .select('_id clientId companyName contactPerson')
+    .sort({ companyName: 1 });
+
+  new ApiResponse(200, { clients }, 'Active clients fetched successfully').send(res);
 });
