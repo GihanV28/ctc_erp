@@ -8,70 +8,118 @@ import {
   Package,
   MapPin,
   Calendar,
+  Clock,
+  CheckCircle2,
+  Circle,
+  Loader2,
   AlertCircle,
-  Info,
-  RotateCcw
+  Ship,
+  Plane,
+  Truck
 } from 'lucide-react';
-import { mockUser } from '@/lib/mockData';
+import { useProfilePhoto } from '@/context/ProfilePhotoContext';
 import { cn } from '@/lib/utils';
+import { trackingService, type PublicTrackingResponse, type TrackingUpdate } from '@/services/trackingService';
 
-const trackingData = {
-  orderId: '3354654654526',
-  orderDate: 'Feb 16, 2023',
-  lateDelivery: 'May 16, 2023',
-  currentStatus: 2, // 0: Order Confirmed, 1: Shipped, 2: Out For Delivery, 3: Delivered
-  timeline: [
-    { status: 'Order Confirmed', date: 'Wed, 11th Jan', completed: true },
-    { status: 'Shipped', date: 'Wed, 11th Jan', completed: true },
-    { status: 'Out For Delivery', date: 'Wed, 11th Jan', completed: true },
-    { status: 'Delivered', date: 'Wed, 11th Jan', completed: false },
-  ],
-  items: [
-    {
-      id: 1,
-      name: 'Machinery Parts',
-      hsCode: '31',
-      qty: 2,
-      unit: 'cartons',
-      price: 2599.00,
-      quantity: 1,
-    },
-    {
-      id: 2,
-      name: 'Electronics Components',
-      hsCode: '21',
-      qty: 1,
-      unit: 'carton',
-      price: 2599.00,
-      quantity: 1,
-      address: '847 Jewess Bridge Apt, London, UK',
-      phone: '474-769-3910',
-    },
-  ],
-  costs: {
-    discount: { amount: 8109.00, percentage: 20 },
-    delivery1: 0.00,
-    delivery2: 271.90,
-    tax1: 0.00,
-    tax2: 0.00,
-    total: 0.00,
-  },
-  origin: {
-    location: 'Colombo, Sri Lanka',
-    port: 'Port of Colombo',
-  },
-  destination: {
-    location: 'London, UK',
-    port: 'London Gateway, UK',
-  },
-  estimatedDelivery: 'Nov 10, 2024',
+// Status label mapping
+const statusLabels: Record<string, string> = {
+  order_confirmed: 'Order Confirmed',
+  picked_up: 'Picked Up',
+  in_transit: 'In Transit',
+  at_origin_port: 'At Origin Port',
+  departed_origin: 'Departed Origin',
+  at_sea: 'At Sea',
+  arrived_destination_port: 'Arrived at Destination Port',
+  customs_clearance: 'Customs Clearance',
+  out_for_delivery: 'Out for Delivery',
+  delivered: 'Delivered',
+  delayed: 'Delayed',
+  exception: 'Exception',
+  pending: 'Pending',
+  confirmed: 'Confirmed',
+  cancelled: 'Cancelled',
+  on_hold: 'On Hold',
+};
+
+// Status icon mapping
+const getStatusIcon = (status: string) => {
+  switch (status) {
+    case 'at_sea':
+    case 'departed_origin':
+      return Ship;
+    case 'at_origin_port':
+    case 'arrived_destination_port':
+      return Package;
+    case 'out_for_delivery':
+      return Truck;
+    case 'delivered':
+      return CheckCircle2;
+    default:
+      return Package;
+  }
+};
+
+// Format location string
+const formatLocation = (location: { name: string; city?: string; country: string }) => {
+  const parts = [location.name];
+  if (location.city) parts.push(location.city);
+  parts.push(location.country);
+  return parts.join(', ');
+};
+
+// Format date
+const formatDate = (date: Date | string) => {
+  const d = new Date(date);
+  return d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
+// Format time
+const formatTime = (date: Date | string) => {
+  const d = new Date(date);
+  return d.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
 export default function TrackingPage() {
-  const [trackingId, setTrackingId] = useState('3354654654526');
+  const { profilePhoto, userName } = useProfilePhoto();
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [trackingData, setTrackingData] = useState<PublicTrackingResponse | null>(null);
 
-  const handleTrack = () => {
-    console.log('Tracking:', trackingId);
+  const handleTrack = async () => {
+    if (!trackingNumber.trim()) {
+      setError('Please enter a tracking number');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setTrackingData(null);
+
+    try {
+      const data = await trackingService.getPublicTracking(trackingNumber.trim());
+      setTrackingData(data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch tracking information');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getInitials = () => {
+    if (!userName || userName === 'User') return 'U';
+    const parts = userName.split(' ');
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return userName.substring(0, 2).toUpperCase();
   };
 
   return (
@@ -80,10 +128,18 @@ export default function TrackingPage() {
       subtitle="Enter your tracking ID to view shipment details"
       headerAction={
         <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-gray-700">{mockUser.name}</span>
-          <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-semibold">
-            {mockUser.avatar}
-          </div>
+          <span className="text-sm font-medium text-gray-700">{userName}</span>
+          {profilePhoto ? (
+            <img
+              src={profilePhoto}
+              alt={userName}
+              className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-semibold">
+              {getInitials()}
+            </div>
+          )}
         </div>
       }
     >
@@ -95,236 +151,251 @@ export default function TrackingPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="3354654654526"
-                value={trackingId}
-                onChange={(e) => setTrackingId(e.target.value)}
+                placeholder="Enter tracking number (e.g., CCT2026040)"
+                value={trackingNumber}
+                onChange={(e) => setTrackingNumber(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleTrack()}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
             </div>
-            <Button variant="primary" onClick={handleTrack} className="px-8">
-              Track Order
+            <Button
+              variant="primary"
+              onClick={handleTrack}
+              disabled={loading}
+              className="px-8"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Tracking...
+                </>
+              ) : (
+                'Track Order'
+              )}
             </Button>
           </div>
         </div>
 
-        {/* Order Information */}
-        <div className="bg-white rounded-2xl p-6 border border-gray-200">
-          <div className="flex items-start justify-between mb-6">
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
             <div>
-              <p className="text-sm text-gray-600 mb-1">Order ID</p>
-              <h2 className="text-3xl font-bold text-gray-900">{trackingData.orderId}</h2>
-              <div className="flex items-center gap-4 mt-2">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="w-4 h-4" />
-                  Order date: {trackingData.orderDate}
-                </div>
-                <div className="flex items-center gap-2 text-sm text-green-600">
-                  <Calendar className="w-4 h-4" />
-                  Late delivery: {trackingData.lateDelivery}
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                Invoice
-              </Button>
-              <Button variant="primary" size="sm">
-                Track Order
-              </Button>
+              <h3 className="text-sm font-medium text-red-800">Error</h3>
+              <p className="text-sm text-red-700 mt-1">{error}</p>
             </div>
           </div>
+        )}
 
-          {/* Progress Timeline */}
-          <div className="relative">
-            <div className="flex items-center justify-between">
-              {trackingData.timeline.map((step, index) => (
-                <div key={index} className="flex flex-col items-center flex-1 relative">
-                  {/* Circle */}
-                  <div
-                    className={cn(
-                      'w-6 h-6 rounded-full border-4 z-10',
-                      step.completed
-                        ? 'bg-purple-600 border-purple-600'
-                        : 'bg-gray-300 border-gray-300'
-                    )}
-                  />
-
-                  {/* Label */}
-                  <div className="text-center mt-3">
-                    <p
-                      className={cn(
-                        'text-sm font-medium',
-                        step.completed ? 'text-green-600' : 'text-gray-400'
-                      )}
-                    >
-                      {step.status}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">{step.date}</p>
+        {/* Tracking Results */}
+        {trackingData && (
+          <>
+            {/* Shipment Header */}
+            <div className="bg-white rounded-2xl p-6 border border-gray-200">
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Shipment ID</p>
+                  <h2 className="text-3xl font-bold text-gray-900">{trackingData.shipment.shipmentId}</h2>
+                  <div className="flex items-center gap-4 mt-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Package className="w-4 h-4" />
+                      Tracking: {trackingData.shipment.trackingNumber}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+                          trackingData.shipment.status === 'delivered'
+                            ? 'bg-green-100 text-green-800'
+                            : trackingData.shipment.status === 'cancelled'
+                            ? 'bg-red-100 text-red-800'
+                            : trackingData.shipment.status === 'on_hold'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-blue-100 text-blue-800'
+                        )}
+                      >
+                        {statusLabels[trackingData.shipment.status] || trackingData.shipment.status}
+                      </span>
+                    </div>
                   </div>
+                </div>
+              </div>
 
-                  {/* Line to next step */}
-                  {index < trackingData.timeline.length - 1 && (
-                    <div
-                      className={cn(
-                        'absolute top-3 left-1/2 h-1 w-full -z-0',
-                        step.completed && trackingData.timeline[index + 1].completed
-                          ? 'bg-purple-600'
-                          : 'bg-gray-300'
-                      )}
-                      style={{ transform: 'translateY(-50%)' }}
-                    />
+              {/* Shipment Route */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Origin */}
+                <div>
+                  <p className="text-sm text-gray-600 mb-2 font-medium">Origin</p>
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-gray-900">{trackingData.shipment.origin.port}</p>
+                      <p className="text-sm text-gray-600">
+                        {trackingData.shipment.origin.city}, {trackingData.shipment.origin.country}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Arrow */}
+                <div className="flex items-center justify-center">
+                  <div className="text-gray-300">
+                    <svg
+                      className="w-12 h-12"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 7l5 5m0 0l-5 5m5-5H6"
+                      />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Destination */}
+                <div>
+                  <p className="text-sm text-gray-600 mb-2 font-medium">Destination</p>
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-5 h-5 text-red-600 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-gray-900">{trackingData.shipment.destination.port}</p>
+                      <p className="text-sm text-gray-600">
+                        {trackingData.shipment.destination.city}, {trackingData.shipment.destination.country}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dates */}
+              {trackingData.shipment.dates && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-200">
+                  {trackingData.shipment.dates.departureDate && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Departure Date</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {formatDate(trackingData.shipment.dates.departureDate)}
+                      </p>
+                    </div>
+                  )}
+                  {trackingData.shipment.dates.estimatedArrival && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Estimated Arrival</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {formatDate(trackingData.shipment.dates.estimatedArrival)}
+                      </p>
+                    </div>
+                  )}
+                  {trackingData.shipment.dates.actualArrival && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Actual Arrival</p>
+                      <p className="text-sm font-medium text-green-700">
+                        {formatDate(trackingData.shipment.dates.actualArrival)}
+                      </p>
+                    </div>
                   )}
                 </div>
-              ))}
+              )}
             </div>
-          </div>
-        </div>
 
-        {/* Shipment Summary and Costs */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Shipment Summary */}
-          <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-gray-200">
-            <h3 className="text-lg font-bold text-gray-900 mb-6">Shipment Summary</h3>
+            {/* Tracking Timeline */}
+            <div className="bg-white rounded-2xl p-6 border border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900 mb-6">Tracking History</h3>
 
-            <div className="space-y-4">
-              {trackingData.items.map((item) => (
-                <div key={item.id} className="flex gap-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center border border-gray-200">
-                    <Package className="w-6 h-6 text-gray-400" />
-                  </div>
+              {trackingData.trackingUpdates.length === 0 ? (
+                <div className="text-center py-8">
+                  <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600">No tracking updates available yet</p>
+                </div>
+              ) : (
+                <div className="space-y-0">
+                  {trackingData.trackingUpdates.map((update, index) => {
+                    const Icon = getStatusIcon(update.status);
+                    const isLatest = index === 0;
+                    const isLast = index === trackingData.trackingUpdates.length - 1;
 
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h4 className="font-semibold text-gray-900">{item.name}</h4>
-                        <p className="text-sm text-gray-600">
-                          HS Code: {item.hsCode} | Qty: {item.qty} {item.unit}
-                        </p>
+                    return (
+                      <div key={update._id} className="relative pb-8">
+                        {/* Connecting Line */}
+                        {!isLast && (
+                          <span
+                            className="absolute left-6 top-10 -ml-px h-full w-0.5 bg-gray-200"
+                            aria-hidden="true"
+                          />
+                        )}
+
+                        <div className="relative flex items-start space-x-4">
+                          {/* Icon */}
+                          <div className="relative flex items-center justify-center">
+                            <div
+                              className={cn(
+                                'flex h-12 w-12 items-center justify-center rounded-full border-4',
+                                isLatest
+                                  ? 'border-purple-100 bg-purple-600'
+                                  : 'border-gray-100 bg-gray-400'
+                              )}
+                            >
+                              <Icon className="h-5 w-5 text-white" aria-hidden="true" />
+                            </div>
+                          </div>
+
+                          {/* Content */}
+                          <div className="min-w-0 flex-1 pt-1.5">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <p className={cn(
+                                  'text-sm font-semibold',
+                                  isLatest ? 'text-purple-700' : 'text-gray-900'
+                                )}>
+                                  {statusLabels[update.status] || update.status}
+                                  {isLatest && (
+                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                      Latest
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="mt-1 text-sm text-gray-700">{update.description}</p>
+                                <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" />
+                                    {formatLocation(update.location)}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {formatDate(update.timestamp)} at {formatTime(update.timestamp)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-gray-900">${item.price.toFixed(2)}</p>
-                        <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
-                      </div>
-                    </div>
-
-                    {item.address && (
-                      <div className="text-sm text-gray-600 mt-2">
-                        <p className="font-medium">Address:</p>
-                        <p>{item.address}</p>
-                        <p>{item.phone}</p>
-                      </div>
-                    )}
-                  </div>
+                    );
+                  })}
                 </div>
-              ))}
+              )}
             </div>
+          </>
+        )}
 
-            {/* Need Help */}
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <h4 className="font-semibold text-gray-900 mb-4">Need Help</h4>
-              <div className="space-y-2 mb-4">
-                <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
-                  <AlertCircle className="w-4 h-4 text-orange-500" />
-                  Order Issues
-                </button>
-                <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
-                  <Info className="w-4 h-4 text-blue-500" />
-                  Delivery Info
-                </button>
-                <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
-                  <RotateCcw className="w-4 h-4 text-gray-500" />
-                  Returns
-                </button>
+        {/* Initial State - No search yet */}
+        {!trackingData && !error && !loading && (
+          <div className="bg-white rounded-2xl p-12 border border-gray-200">
+            <div className="text-center">
+              <div className="mx-auto w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+                <Package className="w-12 h-12 text-purple-600" />
               </div>
-              <Button variant="primary" className="w-full">
-                Contact Support
-              </Button>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Track Your Shipment</h3>
+              <p className="text-gray-600 max-w-md mx-auto">
+                Enter your tracking number above to view real-time updates on your shipment's location and status.
+              </p>
             </div>
           </div>
-
-          {/* Delivery Costs */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-200">
-            <h3 className="text-lg font-bold text-gray-900 mb-6">Delivery</h3>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Discount</span>
-                <span className="text-gray-900">
-                  ${trackingData.costs.discount.amount.toFixed(2)} ({trackingData.costs.discount.percentage}%)
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Delivery</span>
-                <span className="text-gray-900">${trackingData.costs.delivery1.toFixed(2)}</span>
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Delivery</span>
-                <span className="text-gray-900">+${trackingData.costs.delivery2.toFixed(2)}</span>
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Tax</span>
-                <span className="text-gray-900">${trackingData.costs.tax1.toFixed(2)}</span>
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Tax</span>
-                <span className="text-gray-900">${trackingData.costs.tax2.toFixed(2)}</span>
-              </div>
-
-              <div className="pt-3 border-t border-gray-200">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-gray-900">Total</span>
-                  <span className="font-bold text-gray-900">${trackingData.costs.total.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Shipment Information */}
-        <div className="bg-white rounded-2xl p-6 border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">Shipment Information</h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Origin */}
-            <div>
-              <p className="text-sm text-gray-600 mb-2">Origin</p>
-              <div className="flex items-start gap-2">
-                <MapPin className="w-5 h-5 text-gray-400 mt-1" />
-                <div>
-                  <p className="font-semibold text-gray-900">{trackingData.origin.location}</p>
-                  <p className="text-sm text-gray-600">{trackingData.origin.port}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Destination */}
-            <div>
-              <p className="text-sm text-gray-600 mb-2">Destination</p>
-              <div className="flex items-start gap-2">
-                <MapPin className="w-5 h-5 text-gray-400 mt-1" />
-                <div>
-                  <p className="font-semibold text-gray-900">{trackingData.destination.location}</p>
-                  <p className="text-sm text-gray-600">{trackingData.destination.port}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Estimated Delivery */}
-            <div>
-              <p className="text-sm text-gray-600 mb-2">Estimated Delivery</p>
-              <div className="flex items-start gap-2">
-                <Calendar className="w-5 h-5 text-gray-400 mt-1" />
-                <div>
-                  <p className="font-semibold text-gray-900">{trackingData.estimatedDelivery}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </PortalLayout>
   );
