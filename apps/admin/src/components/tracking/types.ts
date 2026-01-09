@@ -10,23 +10,29 @@ export interface TrackingStatus {
 
 export interface TrackingUpdate {
   _id: string;
-  shipmentId: string;
+  shipmentId?: string;
+  shipment?: any;
   status: string;
   location: {
     name: string;
-    city: string;
+    city?: string;
     country: string;
     coordinates?: {
       lat: number;
       lng: number;
     };
-  };
+  } | string;
   description: string;
-  timestamp: string;
-  isPublic: boolean;
+  timestamp: string | Date;
+  isPublic?: boolean;
   attachments?: string[];
   metadata?: Record<string, any>;
-  createdBy: string;
+  createdBy?: string | {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email?: string;
+  };
 }
 
 export interface TrackingUpdateFormData {

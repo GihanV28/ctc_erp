@@ -2,24 +2,31 @@ import api, { ApiResponse, getErrorMessage } from '@/lib/api';
 
 export interface TrackingUpdate {
   _id: string;
-  shipment: any;
+  shipment?: any;
+  shipmentId?: string;
   status: string;
   location: {
     name: string;
     city?: string;
     country: string;
-  } | string; // Can be string for display purposes
+    coordinates?: {
+      lat: number;
+      lng: number;
+    };
+  } | string;
   description: string;
-  timestamp: Date;
+  timestamp: Date | string;
   isPublic?: boolean;
+  attachments?: string[];
+  metadata?: Record<string, any>;
   createdBy?: {
     _id: string;
     firstName: string;
     lastName: string;
     email?: string;
-  };
-  createdAt: Date;
-  updatedAt: Date;
+  } | string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface ActiveShipment {
