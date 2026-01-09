@@ -394,11 +394,11 @@ export default function SettingsPage() {
 
       // Update current user - remove profile photo
       if (currentUser) {
-        const updatedUser = { ...currentUser, profilePhoto: null };
+        const updatedUser = { ...currentUser, profilePhoto: undefined };
         localStorage.setItem('user', JSON.stringify(updatedUser));
         setCurrentUser(updatedUser);
         // Update AuthContext to reflect changes in header
-        updateUser({ profilePhoto: null });
+        updateUser({ profilePhoto: undefined });
       }
 
       alert('Profile picture deleted successfully!');
