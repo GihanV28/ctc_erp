@@ -187,7 +187,7 @@ export default function ContainersPage() {
     setIsEditModalOpen(true);
   };
 
-  const getStatusBadgeVariant = (status: string): 'purple' | 'success' | 'warning' | 'danger' => {
+  const getStatusBadgeVariant = (status: string): 'purple' | 'success' | 'warning' | 'error' => {
     switch (status) {
       case 'in_use':
         return 'purple';
@@ -196,13 +196,13 @@ export default function ContainersPage() {
       case 'maintenance':
         return 'warning';
       case 'damaged':
-        return 'danger';
+        return 'error';
       default:
         return 'success';
     }
   };
 
-  const getConditionBadgeVariant = (condition: string): 'success' | 'info' | 'warning' | 'danger' => {
+  const getConditionBadgeVariant = (condition: string): 'success' | 'info' | 'warning' | 'error' => {
     switch (condition) {
       case 'excellent':
         return 'success';
@@ -211,7 +211,7 @@ export default function ContainersPage() {
       case 'fair':
         return 'warning';
       case 'poor':
-        return 'danger';
+        return 'error';
       default:
         return 'info';
     }
