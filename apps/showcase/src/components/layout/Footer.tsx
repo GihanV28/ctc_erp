@@ -2,7 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Package, Facebook, Linkedin, Twitter, Instagram, Mail, Phone, MapPin } from 'lucide-react';
+import Image from 'next/image';
+import { Facebook, Linkedin, Twitter, Instagram, Mail, Phone, MapPin } from 'lucide-react';
 import { CONTACT_INFO, SOCIAL_LINKS, FOOTER_LINKS } from '../../lib/constants';
 import { scrollToSection } from '../../lib/utils';
 
@@ -22,7 +23,13 @@ export const Footer: React.FC = () => {
           {/* About Column */}
           <div>
             <div className="flex items-center space-x-2 text-white mb-4">
-              <Package className="h-8 w-8 text-violet-400" />
+              <Image
+                src="/images/logo/logo.png"
+                alt="Ceylon Cargo Transport"
+                width={32}
+                height={32}
+                className="h-8 w-auto"
+              />
               <span className="text-lg font-bold">Ceylon Cargo</span>
             </div>
             <p className="text-sm leading-relaxed mb-4">

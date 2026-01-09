@@ -28,11 +28,13 @@ import Input from '@/components/ui/Input';
 import Toggle from '@/components/ui/Toggle';
 import { useRouter } from 'next/navigation';
 import { settingsService } from '@/services/settingsService';
+import { useAuth } from '@/context/AuthContext';
 
 type TabType = 'company' | 'profile' | 'notifications' | 'security' | 'system';
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('company');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -367,6 +369,8 @@ export default function SettingsPage() {
         const updatedUser = { ...currentUser, profilePhoto: response.data.profilePhoto };
         localStorage.setItem('user', JSON.stringify(updatedUser));
         setCurrentUser(updatedUser);
+        // Update AuthContext to reflect changes in header
+        updateUser({ profilePhoto: response.data.profilePhoto });
       }
 
       setShowUploadModal(false);
@@ -393,6 +397,8 @@ export default function SettingsPage() {
         const updatedUser = { ...currentUser, profilePhoto: null };
         localStorage.setItem('user', JSON.stringify(updatedUser));
         setCurrentUser(updatedUser);
+        // Update AuthContext to reflect changes in header
+        updateUser({ profilePhoto: null });
       }
 
       alert('Profile picture deleted successfully!');

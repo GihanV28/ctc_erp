@@ -62,8 +62,16 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                 {user?.role?.name || 'Admin'}
               </span>
             </div>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center text-white font-semibold shadow-md">
-              {getInitials()}
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center text-white font-semibold shadow-md overflow-hidden">
+              {user?.profilePhoto ? (
+                <img
+                  src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${user.profilePhoto}`}
+                  alt={`${user.firstName} ${user.lastName}`}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                getInitials()
+              )}
             </div>
           </button>
 

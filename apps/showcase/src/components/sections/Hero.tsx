@@ -12,11 +12,11 @@ export const Hero: React.FC = () => {
     <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image with Overlay */}
       <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-900/80 to-gray-900/60 z-10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900/85 to-gray-900/70 z-10" />
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: 'url(/images/hero/cargo-port.jpg)',
+            backgroundImage: 'url(/images/hero/warehouse-cargo.jpg)',
             backgroundColor: '#1f2937' // Fallback color
           }}
         />
@@ -47,14 +47,6 @@ export const Hero: React.FC = () => {
               onClick={() => (window.location.href = SIGNUP_URL)}
             >
               Join With Us
-            </Button>
-            <Button
-              variant="outline"
-              size="xl"
-              className="bg-white/10 backdrop-blur-sm border-white text-white hover:bg-white/20"
-              onClick={() => scrollToSection('track')}
-            >
-              Track Shipment
             </Button>
           </div>
         </SlideIn>

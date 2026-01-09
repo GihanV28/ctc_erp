@@ -93,8 +93,19 @@ export default function TrackingPage() {
   const [error, setError] = useState('');
   const [trackingData, setTrackingData] = useState<PublicTrackingResponse | null>(null);
 
-  const handleTrack = async () => {
-    if (!trackingNumber.trim()) {
+  // Check for tracking number in URL on mount
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const numberParam = params.get('number');
+    if (numberParam) {
+      setTrackingNumber(numberParam);
+      // Auto-search when coming from dashboard
+      handleTrackWithNumber(numberParam);
+    }
+  }, []);
+
+  const handleTrackWithNumber = async (number: string) => {
+    if (!number.trim()) {
       setError('Please enter a tracking number');
       return;
     }
@@ -104,13 +115,17 @@ export default function TrackingPage() {
     setTrackingData(null);
 
     try {
-      const data = await trackingService.getPublicTracking(trackingNumber.trim());
+      const data = await trackingService.getPublicTracking(number.trim());
       setTrackingData(data);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch tracking information');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleTrack = async () => {
+    handleTrackWithNumber(trackingNumber);
   };
 
   const getInitials = () => {

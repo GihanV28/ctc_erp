@@ -6,10 +6,10 @@ interface ActivityItemProps {
   shipmentId: string;
   date: string;
   location: string;
-  status: 'In Transit' | 'Delivered' | 'Processing';
+  status: string;
 }
 
-const statusConfig = {
+const statusConfig: Record<string, { color: string; iconBg: string; iconColor: string }> = {
   'In Transit': {
     color: 'bg-purple-100 text-purple-700',
     iconBg: 'bg-purple-100',
@@ -25,6 +25,43 @@ const statusConfig = {
     iconBg: 'bg-orange-100',
     iconColor: 'text-orange-600',
   },
+  'Pending': {
+    color: 'bg-orange-100 text-orange-700',
+    iconBg: 'bg-orange-100',
+    iconColor: 'text-orange-600',
+  },
+  'Confirmed': {
+    color: 'bg-blue-100 text-blue-700',
+    iconBg: 'bg-blue-100',
+    iconColor: 'text-blue-600',
+  },
+  'Customs': {
+    color: 'bg-yellow-100 text-yellow-700',
+    iconBg: 'bg-yellow-100',
+    iconColor: 'text-yellow-600',
+  },
+  'Out For Delivery': {
+    color: 'bg-indigo-100 text-indigo-700',
+    iconBg: 'bg-indigo-100',
+    iconColor: 'text-indigo-600',
+  },
+  'Cancelled': {
+    color: 'bg-red-100 text-red-700',
+    iconBg: 'bg-red-100',
+    iconColor: 'text-red-600',
+  },
+  'On Hold': {
+    color: 'bg-gray-100 text-gray-700',
+    iconBg: 'bg-gray-100',
+    iconColor: 'text-gray-600',
+  },
+};
+
+// Default config for unknown statuses
+const defaultConfig = {
+  color: 'bg-gray-100 text-gray-700',
+  iconBg: 'bg-gray-100',
+  iconColor: 'text-gray-600',
 };
 
 export default function ActivityItem({
@@ -33,7 +70,7 @@ export default function ActivityItem({
   location,
   status,
 }: ActivityItemProps) {
-  const config = statusConfig[status];
+  const config = statusConfig[status] || defaultConfig;
 
   return (
     <div className="flex items-center gap-4 p-4 hover:bg-gray-50 rounded-lg transition-colors">

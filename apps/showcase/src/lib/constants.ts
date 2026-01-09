@@ -310,7 +310,6 @@ export const NAV_LINKS = [
   { id: 'about', label: 'About', href: '#about' },
   { id: 'services', label: 'Services', href: '#services' },
   { id: 'how-it-works', label: 'How It Works', href: '#how-it-works' },
-  { id: 'track', label: 'Track', href: '#track' },
   { id: 'contact', label: 'Contact', href: '#contact' }
 ];
 
@@ -319,7 +318,6 @@ export const FOOTER_LINKS = {
     { label: 'Home', href: '#hero' },
     { label: 'About Us', href: '#about' },
     { label: 'Services', href: '#services' },
-    { label: 'Track Shipment', href: '#track' },
     { label: 'Contact', href: '#contact' }
   ],
   services: [

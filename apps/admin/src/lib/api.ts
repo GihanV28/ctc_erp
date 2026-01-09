@@ -132,6 +132,7 @@ export interface User {
   isActive: boolean;
   isEmailVerified: boolean;
   clientId?: string;
+  profilePhoto?: string;
 }
 
 // Helper function to handle API errors

@@ -22,12 +22,16 @@ export const About: React.FC = () => {
           <SlideIn direction="left">
             <div className="relative">
               <img
-                src="/images/about/warehouse.jpg"
-                alt="Ceylon Cargo Transport Warehouse"
+                src="/images/about/warehouse-interior.jpg"
+                alt="Ceylon Cargo Transport Warehouse Interior"
                 className="rounded-xl shadow-lg w-full h-[500px] object-cover"
                 style={{ backgroundColor: '#e5e7eb' }}
+                onError={(e) => {
+                  e.currentTarget.style.backgroundColor = '#9333ea';
+                  e.currentTarget.style.opacity = '0.1';
+                }}
               />
-              <div className="absolute -bottom-6 -right-6 bg-violet-600 text-white p-6 rounded-lg shadow-xl">
+              <div className="absolute -bottom-6 -right-6 bg-violet-600 text-white p-6 rounded-lg shadow-xl z-10">
                 <p className="text-4xl font-bold">15+</p>
                 <p className="text-sm">Years Experience</p>
               </div>

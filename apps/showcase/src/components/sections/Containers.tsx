@@ -23,14 +23,43 @@ export const Containers: React.FC = () => {
         </FadeIn>
 
         <div className="space-y-6">
-          {CONTAINERS.map((container, index) => (
-            <SlideIn key={container.id} direction={index % 2 === 0 ? 'left' : 'right'}>
-              <Card variant="hover">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Container Image/Icon */}
-                  <div className="flex items-center justify-center bg-gradient-to-br from-violet-50 to-purple-50 rounded-lg p-8">
-                    <Package className="h-32 w-32 text-violet-600" />
-                  </div>
+          {CONTAINERS.map((container, index) => {
+            // Map container types to image filenames
+            const containerImages: Record<string, string> = {
+              '20ft-standard': '20ft-standard.jpg',
+              '40ft-standard': '40ft-standard.jpg',
+              '40ft-high-cube': '40ft-high-cube.jpg',
+              '20ft-refrigerated': '20ft-refrigerated.jpg',
+              '40ft-refrigerated': '40ft-refrigerated.jpg',
+            };
+
+            return (
+              <SlideIn key={container.id} direction={index % 2 === 0 ? 'left' : 'right'}>
+                <Card variant="hover">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Container Image */}
+                    <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-violet-50 to-purple-50">
+                      <img
+                        src={`/images/containers/${containerImages[container.id] || 'default.jpg'}`}
+                        alt={container.name}
+                        className="w-full h-64 object-cover"
+                        onError={(e) => {
+                          // Fallback to icon if image not found
+                          const target = e.currentTarget;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `
+                              <div class="flex items-center justify-center h-64">
+                                <svg class="h-32 w-32 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                </svg>
+                              </div>
+                            `;
+                          }
+                        }}
+                      />
+                    </div>
 
                   {/* Container Details */}
                   <div className="lg:col-span-2 space-y-4">
@@ -83,7 +112,8 @@ export const Containers: React.FC = () => {
                 </div>
               </Card>
             </SlideIn>
-          ))}
+            );
+          })}
         </div>
       </Container>
     </Section>

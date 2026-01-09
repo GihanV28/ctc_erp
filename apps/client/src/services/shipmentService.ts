@@ -141,8 +141,13 @@ export const shipmentService = {
   // Get shipment stats
   getStats: async (): Promise<ShipmentStats> => {
     try {
-      const response = await api.get<ApiResponse<{ stats: ShipmentStats }>>('/shipments/stats');
-      return response.data.data!.stats;
+      const response = await api.get<ApiResponse<ShipmentStats>>('/shipments/stats');
+      // Handle both response formats: { stats: {...} } or direct stats object
+      const data = response.data.data;
+      if (data && 'stats' in data) {
+        return (data as any).stats;
+      }
+      return data as ShipmentStats;
     } catch (error) {
       throw new Error(getErrorMessage(error));
     }

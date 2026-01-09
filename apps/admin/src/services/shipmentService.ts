@@ -82,6 +82,48 @@ export interface ShipmentStats {
   delayed: number;
 }
 
+export interface InvoiceLineItem {
+  description: string;
+  hs: string;
+  qty: number;
+  cartons: number;
+  netWeight: number;
+  grossWeight: number;
+  dimensions: string;
+  freight: number;
+  customs: number;
+  total: number;
+}
+
+export interface InvoicePreview {
+  invoiceNumber: string;
+  date: string;
+  billedTo: {
+    name: string;
+    company: string;
+    address: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+  };
+  shipmentDetails: {
+    orderId: string;
+    trackingId: string;
+    containerNo: string;
+    origin: string;
+    destination: string;
+    estimatedDate: string | null;
+  };
+  lineItems: InvoiceLineItem[];
+  summary: {
+    subtotal: number;
+    tax: number;
+    total: number;
+  };
+  notes: string;
+}
+
 export const shipmentService = {
   // Get all shipments
   getAll: async (params?: {
@@ -172,6 +214,38 @@ export const shipmentService = {
     try {
       const response = await api.get<ApiResponse<{ containers: any[] }>>('/containers/available/list');
       return response.data.data!.containers;
+    } catch (error) {
+      throw new Error(getErrorMessage(error));
+    }
+  },
+
+  // Preview invoice for a shipment
+  previewInvoice: async (shipmentId: string): Promise<InvoicePreview> => {
+    try {
+      const response = await api.get<ApiResponse<{ invoice: InvoicePreview }>>(`/invoices/shipment/${shipmentId}/preview`);
+      return response.data.data!.invoice;
+    } catch (error) {
+      throw new Error(getErrorMessage(error));
+    }
+  },
+
+  // Download invoice PDF for a shipment
+  downloadInvoicePDF: async (shipmentId: string, shipmentNumber: string): Promise<void> => {
+    try {
+      const response = await api.get(`/invoices/shipment/${shipmentId}/pdf`, {
+        responseType: 'blob',
+      });
+
+      // Create blob and download
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Invoice-${shipmentNumber}-${Date.now()}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       throw new Error(getErrorMessage(error));
     }

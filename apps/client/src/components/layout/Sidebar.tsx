@@ -20,7 +20,6 @@ const navigation = [
   { name: 'Profile', href: '/profile', icon: User },
   { name: 'Shipments', href: '/shipments', icon: Package },
   { name: 'Tracking', href: '/track', icon: MapPin },
-  { name: 'Reports', href: '/reports', icon: FileText },
   { name: 'Inquiry', href: '/support', icon: HelpCircle },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];

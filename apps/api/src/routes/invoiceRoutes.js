@@ -35,6 +35,32 @@ router.get(
 
 /**
  * @swagger
+ * /api/invoices/shipment/{shipmentId}/preview:
+ *   get:
+ *     summary: Preview invoice data for a shipment
+ *     tags: [Invoices]
+ */
+router.get(
+  '/shipment/:shipmentId/preview',
+  hasAnyPermission(['invoices:read', 'invoices:read:own', 'shipments:read']),
+  invoiceController.previewShipmentInvoice
+);
+
+/**
+ * @swagger
+ * /api/invoices/shipment/{shipmentId}/pdf:
+ *   get:
+ *     summary: Generate and download invoice PDF for a shipment
+ *     tags: [Invoices]
+ */
+router.get(
+  '/shipment/:shipmentId/pdf',
+  hasAnyPermission(['invoices:read', 'invoices:read:own', 'shipments:read']),
+  invoiceController.generateShipmentInvoicePDF
+);
+
+/**
+ * @swagger
  * /api/invoices/{id}:
  *   get:
  *     summary: Get invoice by ID

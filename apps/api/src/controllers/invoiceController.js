@@ -4,6 +4,7 @@ const Client = require('../models/Client');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
+const { generateInvoicePDF } = require('../utils/invoiceGenerator');
 
 /**
  * @desc    Get all invoices
@@ -271,4 +272,120 @@ exports.getInvoiceStats = asyncHandler(async (req, res) => {
   };
 
   new ApiResponse(200, { stats }, 'Invoice stats fetched successfully').send(res);
+});
+
+/**
+ * @desc    Generate and download invoice PDF for a shipment
+ * @route   GET /api/invoices/shipment/:shipmentId/pdf
+ * @access  Private
+ */
+exports.generateShipmentInvoicePDF = asyncHandler(async (req, res) => {
+  const { shipmentId } = req.params;
+
+  // Find shipment and populate client details
+  const shipment = await Shipment.findById(shipmentId).populate('client');
+
+  if (!shipment) {
+    throw new ApiError('Shipment not found', 404);
+  }
+
+  // Check if client is populated
+  if (!shipment.client) {
+    throw new ApiError('Shipment does not have an associated client', 400);
+  }
+
+  // Optional: Accept line items from request body for custom invoices
+  const lineItems = req.body?.lineItems || null;
+
+  // Generate PDF
+  const pdfBuffer = await generateInvoicePDF(shipment, lineItems);
+
+  // Set response headers
+  const filename = `Invoice-${shipment.shipmentId}-${Date.now()}.pdf`;
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Length', pdfBuffer.length);
+
+  // Send PDF
+  res.send(pdfBuffer);
+});
+
+/**
+ * @desc    Preview invoice data for a shipment (without generating PDF)
+ * @route   GET /api/invoices/shipment/:shipmentId/preview
+ * @access  Private
+ */
+exports.previewShipmentInvoice = asyncHandler(async (req, res) => {
+  const { shipmentId } = req.params;
+
+  // Find shipment and populate client details
+  const shipment = await Shipment.findById(shipmentId).populate('client');
+
+  if (!shipment) {
+    throw new ApiError('Shipment not found', 404);
+  }
+
+  // Check if client is populated
+  if (!shipment.client) {
+    throw new ApiError('Shipment does not have an associated client', 400);
+  }
+
+  // Prepare invoice data
+  const client = shipment.client;
+  const billingAddress = client.billingAddress?.sameAsAddress === false
+    ? client.billingAddress
+    : client.address;
+
+  // Generate line items
+  const lineItems = [
+    {
+      description: shipment.cargo?.description || 'Cargo',
+      hs: '',
+      qty: shipment.cargo?.quantity || 1,
+      cartons: 0,
+      netWeight: shipment.cargo?.weight || 0,
+      grossWeight: shipment.cargo?.weight ? Math.round(shipment.cargo.weight * 1.1) : 0,
+      dimensions: shipment.cargo?.volume ? `${shipment.cargo.volume}m³` : '',
+      freight: shipment.totalCost ? Math.round(shipment.totalCost * 0.85) : 0,
+      customs: 0,
+      total: shipment.totalCost || 0,
+    },
+  ];
+
+  // Calculate totals
+  const subtotal = lineItems.reduce((sum, item) => sum + (item.total || 0), 0);
+  const tax = subtotal * 0.09;
+  const total = subtotal + tax;
+
+  // Return preview data
+  new ApiResponse(200, {
+    invoice: {
+      invoiceNumber: `INV-${shipment.shipmentId}`,
+      date: new Date().toISOString(),
+      billedTo: {
+        name: `${client.contactPerson?.firstName || ''} ${client.contactPerson?.lastName || ''}`.trim(),
+        company: client.companyName,
+        address: billingAddress?.street || '',
+        city: billingAddress?.city || '',
+        state: billingAddress?.state || '',
+        postalCode: billingAddress?.postalCode || '',
+        country: billingAddress?.country || '',
+      },
+      shipmentDetails: {
+        orderId: shipment.shipmentId,
+        trackingId: shipment.trackingNumber,
+        containerNo: shipment.cargo?.containerType || 'N/A',
+        origin: `${shipment.origin?.port || 'N/A'}, ${shipment.origin?.country || ''}`,
+        destination: `${shipment.destination?.port || 'N/A'}, ${shipment.destination?.country || ''}`,
+        estimatedDate: shipment.dates?.estimatedArrival || null,
+      },
+      lineItems,
+      summary: {
+        subtotal,
+        tax,
+        total,
+      },
+      notes: shipment.notes || '',
+    },
+  }, 'Invoice preview fetched successfully').send(res);
 });

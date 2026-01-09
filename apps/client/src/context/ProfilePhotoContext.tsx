@@ -7,6 +7,8 @@ interface ProfilePhotoContextType {
   setProfilePhoto: (photo: string | null) => void;
   userName: string;
   setUserName: (name: string) => void;
+  userEmail: string;
+  setUserEmail: (email: string) => void;
 }
 
 const ProfilePhotoContext = createContext<ProfilePhotoContextType | undefined>(undefined);
@@ -14,17 +16,22 @@ const ProfilePhotoContext = createContext<ProfilePhotoContextType | undefined>(u
 export function ProfilePhotoProvider({ children }: { children: React.ReactNode }) {
   const [profilePhoto, setProfilePhotoState] = useState<string | null>(null);
   const [userName, setUserNameState] = useState<string>('User');
+  const [userEmail, setUserEmailState] = useState<string>('');
 
   // Load from localStorage on mount
   useEffect(() => {
     const savedPhoto = localStorage.getItem('profilePhoto');
     const savedName = localStorage.getItem('userName');
+    const savedEmail = localStorage.getItem('userEmail');
 
     if (savedPhoto) {
       setProfilePhotoState(savedPhoto);
     }
     if (savedName) {
       setUserNameState(savedName);
+    }
+    if (savedEmail) {
+      setUserEmailState(savedEmail);
     }
   }, []);
 
@@ -43,8 +50,13 @@ export function ProfilePhotoProvider({ children }: { children: React.ReactNode }
     localStorage.setItem('userName', name);
   };
 
+  const setUserEmail = (email: string) => {
+    setUserEmailState(email);
+    localStorage.setItem('userEmail', email);
+  };
+
   return (
-    <ProfilePhotoContext.Provider value={{ profilePhoto, setProfilePhoto, userName, setUserName }}>
+    <ProfilePhotoContext.Provider value={{ profilePhoto, setProfilePhoto, userName, setUserName, userEmail, setUserEmail }}>
       {children}
     </ProfilePhotoContext.Provider>
   );

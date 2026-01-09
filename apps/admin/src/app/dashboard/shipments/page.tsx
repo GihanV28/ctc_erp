@@ -9,6 +9,7 @@ import { Button } from '@/components/ui';
 import NewShipmentModal from '@/components/shipments/NewShipmentModal';
 import ViewShipmentModal from '@/components/shipments/ViewShipmentModal';
 import EditShipmentModal from '@/components/shipments/EditShipmentModal';
+import InvoiceModal from '@/components/shipments/InvoiceModal';
 import { shipmentService, Shipment, CreateShipmentData } from '@/services/shipmentService';
 import { EditShipmentFormData } from '@/components/shipments/EditShipmentModal';
 import {
@@ -26,6 +27,7 @@ import {
   Edit2,
   Trash2,
   Loader2,
+  FileText,
 } from 'lucide-react';
 
 export default function ShipmentsPage() {
@@ -42,6 +44,7 @@ export default function ShipmentsPage() {
   const [isNewShipmentModalOpen, setIsNewShipmentModalOpen] = useState(false);
   const [viewShipment, setViewShipment] = useState<Shipment | null>(null);
   const [editShipment, setEditShipment] = useState<Shipment | null>(null);
+  const [invoiceShipment, setInvoiceShipment] = useState<Shipment | null>(null);
 
   // Protect route
   useEffect(() => {
@@ -355,6 +358,14 @@ export default function ShipmentsPage() {
                           <Eye className="h-4 w-4" />
                         </button>
 
+                        <button
+                          onClick={() => setInvoiceShipment(shipment)}
+                          className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Generate invoice"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </button>
+
                         {hasWritePermission() && (
                           <>
                             <button
@@ -412,6 +423,14 @@ export default function ShipmentsPage() {
           onClose={() => setEditShipment(null)}
           onSubmit={handleEditShipment}
           shipment={editShipment}
+        />
+      )}
+
+      {invoiceShipment && (
+        <InvoiceModal
+          shipmentId={invoiceShipment._id}
+          shipmentNumber={invoiceShipment.shipmentId}
+          onClose={() => setInvoiceShipment(null)}
         />
       )}
     </DashboardLayout>

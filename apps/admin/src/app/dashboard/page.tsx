@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import {
   DollarSign,
@@ -20,6 +21,7 @@ import { financialService } from '@/services/financialService';
 type TabType = 'overview' | 'expenses' | 'income';
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [income, setIncome] = useState<Income[]>([]);
@@ -200,7 +202,10 @@ export default function DashboardPage() {
                 <option value="this_quarter">This Quarter</option>
                 <option value="this_year">This Year</option>
               </select>
-              <button className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium">
+              <button
+                onClick={() => router.push('/dashboard/reports')}
+                className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+              >
                 <Download size={18} />
                 Export Report
               </button>
