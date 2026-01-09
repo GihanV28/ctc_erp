@@ -28,7 +28,7 @@ const ViewContainerModal: React.FC<ViewContainerModalProps> = ({
 }) => {
   if (!container) return null;
 
-  const getStatusBadgeVariant = (status: string): 'purple' | 'success' | 'warning' | 'danger' => {
+  const getStatusBadgeVariant = (status: string): 'purple' | 'success' | 'warning' | 'error' => {
     switch (status) {
       case 'in_use':
         return 'purple';
@@ -37,13 +37,13 @@ const ViewContainerModal: React.FC<ViewContainerModalProps> = ({
       case 'maintenance':
         return 'warning';
       case 'damaged':
-        return 'danger';
+        return 'error';
       default:
         return 'success';
     }
   };
 
-  const getConditionBadgeVariant = (condition: string): 'success' | 'info' | 'warning' | 'danger' => {
+  const getConditionBadgeVariant = (condition: string): 'success' | 'info' | 'warning' | 'error' => {
     switch (condition) {
       case 'excellent':
         return 'success';
@@ -52,7 +52,7 @@ const ViewContainerModal: React.FC<ViewContainerModalProps> = ({
       case 'fair':
         return 'warning';
       case 'poor':
-        return 'danger';
+        return 'error';
       default:
         return 'info';
     }
