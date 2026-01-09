@@ -142,13 +142,15 @@ interface TrackingUpdateModalProps {
   onClose: () => void;
   shipment: Shipment | null;
   onSave: (data: TrackingUpdateFormData) => void;
+  isSaving?: boolean;
 }
 
 export default function TrackingUpdateModal({
   isOpen,
   onClose,
   shipment,
-  onSave
+  onSave,
+  isSaving = false
 }: TrackingUpdateModalProps) {
   const [formData, setFormData] = useState<TrackingUpdateFormData>({
     status: '',
