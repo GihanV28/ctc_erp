@@ -153,7 +153,7 @@ const ViewContainerModal: React.FC<ViewContainerModalProps> = ({
               <div className="flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 text-purple-600" />
                 <p className="text-sm font-semibold text-purple-900">
-                  Assigned to shipment: {container.currentShipment}
+                  Assigned to shipment: {typeof container.currentShipment === 'object' ? container.currentShipment?.shipmentId : container.currentShipment}
                 </p>
               </div>
             </div>
