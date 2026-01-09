@@ -66,33 +66,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (credentials: LoginCredentials) => {
-    try {
-      const response = await authApi.login(credentials);
+    const response = await authApi.login(credentials);
 
-      // Validate userType - only client users can access client portal
-      if (response.user.userType !== 'client') {
-        // Clear auth data
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
-        throw new Error('Access denied. This portal is for clients only. Please use the admin portal.');
-      }
-
-      setUser(response.user);
-      router.push('/dashboard');
-    } catch (error) {
-      throw error;
+    // Validate userType - only client users can access client portal
+    if (response.user.userType !== 'client') {
+      // Clear auth data
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      throw new Error('Access denied. This portal is for clients only. Please use the admin portal.');
     }
+
+    setUser(response.user);
+    router.push('/dashboard');
   };
 
   const register = async (data: RegisterData) => {
-    try {
-      await authApi.register(data);
-      // Redirect to login after successful registration
-      router.push('/login');
-    } catch (error) {
-      throw error;
-    }
+    await authApi.register(data);
+    // Redirect to login after successful registration
+    router.push('/login');
   };
 
   const logout = async () => {
