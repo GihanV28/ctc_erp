@@ -23,8 +23,8 @@ import {
 } from 'lucide-react';
 import { ReportType, ReportFormat } from '@/types';
 import Link from 'next/link';
-import { reportService, Report as ApiReport, ReportStats, ReportConfig } from '@/services/reportService';
-import ConfigureReportModal from '@/components/reports/ConfigureReportModal';
+import { reportService, Report as ApiReport, ReportStats } from '@/services/reportService';
+import ConfigureReportModal, { ReportConfig } from '@/components/reports/ConfigureReportModal';
 
 const reportIcons: Record<ReportType, React.ReactNode> = {
   shipment: <Package className="h-6 w-6" />,
