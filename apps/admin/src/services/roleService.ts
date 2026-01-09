@@ -9,8 +9,8 @@ export interface Role {
   permissions: string[];
   isSystem: boolean;
   userCount?: number;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: Date | string;
+  updatedAt: Date | string;
 }
 
 export interface CreateRoleData {

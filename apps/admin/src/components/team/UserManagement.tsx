@@ -16,34 +16,11 @@ import {
   AlertTriangle,
   Loader2
 } from 'lucide-react';
-import { userService, User as UserType, CreateUserData, UpdateUserData } from '@/services/userService';
-import { roleService, Role as RoleType } from '@/services/roleService';
+import { userService, User, CreateUserData, UpdateUserData } from '@/services/userService';
+import { roleService, Role } from '@/services/roleService';
 import { getErrorMessage } from '@/lib/api';
 
 // Types
-interface Role {
-  _id: string;
-  name: string;
-  displayName: string;
-  userType: 'admin' | 'client';
-}
-
-interface User {
-  _id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  role: Role;
-  userType: 'admin' | 'client';
-  status: 'active' | 'inactive' | 'suspended' | 'pending';
-  emailVerified: boolean;
-  phoneVerified: boolean;
-  lastLogin?: string;
-  clientId?: string;
-  createdAt: string;
-}
-
 interface UserFormData {
   email: string;
   firstName: string;
@@ -58,12 +35,12 @@ interface UserFormData {
 }
 
 // Mock data
-const mockRoles: Role[] = [
-  { _id: '1', name: 'super_admin', displayName: 'Super Administrator', userType: 'admin' },
-  { _id: '2', name: 'admin', displayName: 'Administrator', userType: 'admin' },
-  { _id: '3', name: 'operations_manager', displayName: 'Operations Manager', userType: 'admin' },
-  { _id: '4', name: 'client_user', displayName: 'Client User', userType: 'client' }
-];
+const mockRoles = [
+  { _id: '1', name: 'super_admin', displayName: 'Super Administrator', userType: 'admin', permissions: ['*'], isSystem: true, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
+  { _id: '2', name: 'admin', displayName: 'Administrator', userType: 'admin', permissions: [], isSystem: true, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
+  { _id: '3', name: 'operations_manager', displayName: 'Operations Manager', userType: 'admin', permissions: [], isSystem: false, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
+  { _id: '4', name: 'client_user', displayName: 'Client User', userType: 'client', permissions: [], isSystem: false, createdAt: '2024-01-01', updatedAt: '2024-01-01' }
+] as Role[];
 
 const mockUsers: User[] = [
   {
@@ -661,9 +638,9 @@ export default function UserManagement() {
     });
   };
 
-  const formatLastLogin = (dateString?: string) => {
-    if (!dateString) return 'Never';
-    const date = new Date(dateString);
+  const formatLastLogin = (dateValue?: string | Date) => {
+    if (!dateValue) return 'Never';
+    const date = typeof dateValue === 'string' ? new Date(dateValue) : dateValue;
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',

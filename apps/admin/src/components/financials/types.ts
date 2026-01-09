@@ -13,7 +13,11 @@ export interface Expense {
   status: 'pending' | 'paid' | 'overdue';
   attachments?: string[];
   notes?: string;
-  createdBy: string;
+  createdBy: string | {
+    _id: string;
+    name?: string;
+    email?: string;
+  };
   createdAt: string;
 }
 
@@ -46,7 +50,11 @@ export interface Income {
   amountReceived?: number;
   dueDate?: string;
   notes?: string;
-  createdBy: string;
+  createdBy: string | {
+    _id: string;
+    name?: string;
+    email?: string;
+  };
   createdAt: string;
 }
 

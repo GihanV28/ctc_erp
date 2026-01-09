@@ -12,10 +12,11 @@ export interface User {
   userType: 'admin' | 'client';
   status: 'active' | 'inactive' | 'suspended' | 'pending';
   emailVerified: boolean;
-  lastLogin?: Date;
+  phoneVerified?: boolean;
+  lastLogin?: Date | string;
   clientId?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: Date | string;
+  updatedAt?: Date | string;
 }
 
 export interface CreateUserData {

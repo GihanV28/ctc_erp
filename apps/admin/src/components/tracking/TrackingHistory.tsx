@@ -72,9 +72,16 @@ export default function TrackingHistory({ updates, onAddUpdate }: TrackingHistor
                         <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
                           <MapPin size={14} />
                           <span>
-                            {update.location.name}
-                            {update.location.city && `, ${update.location.city}`}
-                            {update.location.country && `, ${update.location.country}`}
+                            {typeof update.location === 'string'
+                              ? update.location
+                              : (
+                                <>
+                                  {update.location.name}
+                                  {update.location.city && `, ${update.location.city}`}
+                                  {update.location.country && `, ${update.location.country}`}
+                                </>
+                              )
+                            }
                           </span>
                         </div>
                       </div>

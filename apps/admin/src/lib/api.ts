@@ -85,6 +85,9 @@ export interface PaginatedResponse<T = any> {
     invoices?: T[];
     clients?: T[];
     users?: T[];
+    expenses?: T[];
+    incomes?: T[];
+    income?: T[];
     pagination: {
       total: number;
       page: number;

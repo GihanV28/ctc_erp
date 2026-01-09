@@ -16,7 +16,7 @@ import {
   AlertTriangle,
   Loader2
 } from 'lucide-react';
-import { roleService, Role as RoleType } from '@/services/roleService';
+import { roleService, Role } from '@/services/roleService';
 import { getErrorMessage } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
@@ -24,26 +24,14 @@ import { useAuth } from '@/context/AuthContext';
 interface Permission {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   category: string;
-}
-
-interface Role {
-  _id: string;
-  name: string;
-  displayName: string;
-  description: string;
-  userType: 'admin' | 'client';
-  isSystem: boolean;
-  permissions: string[];
-  createdAt: string;
-  updatedAt: string;
 }
 
 interface RoleFormData {
   name: string;
   displayName: string;
-  description: string;
+  description?: string;
   userType: 'admin' | 'client';
   permissions: string[];
 }
@@ -406,7 +394,7 @@ const RoleFormModal: React.FC<{
     if (!formData.displayName.trim()) {
       newErrors.displayName = 'Display name is required';
     }
-    if (!formData.description.trim()) {
+    if (!formData.description?.trim()) {
       newErrors.description = 'Description is required';
     }
     if (formData.permissions.length === 0) {
