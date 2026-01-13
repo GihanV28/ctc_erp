@@ -1,0 +1,17 @@
+CANVAS BOX LOGO
+================
+
+The footer now includes a "Powered by Canvas Box" section.
+
+The logo should be placed here as:
+- Filename: tcb.png
+- Recommended size: 200x50px or similar
+- Format: PNG with transparency preferred
+- Should be a horizontal logo that works on dark backgrounds
+
+If the image file is not found, it will fallback to showing "Canvas Box" as text.
+
+The logo is displayed with:
+- Opacity: 70% normally, 100% on hover
+- Height: 16px (h-4 class)
+- Auto width to maintain aspect ratio

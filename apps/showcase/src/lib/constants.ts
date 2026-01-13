@@ -128,10 +128,10 @@ export const TESTIMONIALS: Testimonial[] = [
 ];
 
 export const STATS: Stat[] = [
-  { id: 'clients', value: 1200, label: 'Active Clients', suffix: '+' },
-  { id: 'shipments', value: 400, label: 'Daily Shipments', suffix: '+' },
-  { id: 'countries', value: 70, label: 'Countries Covered' },
-  { id: 'on-time', value: 98, label: 'On-Time Delivery', suffix: '%' }
+  { id: 'sri-lanka', value: 1, label: 'Direct Sri Lanka Route', prefix: '#' },
+  { id: 'countries', value: 50, label: 'Global Partners', suffix: '+' },
+  { id: 'customs', value: 100, label: 'Expert Customs', suffix: '%' },
+  { id: 'on-time', value: 100, label: 'On-Time Delivery', suffix: '%' }
 ];
 
 export const CONTAINERS: Container[] = [
@@ -147,7 +147,8 @@ export const CONTAINERS: Container[] = [
     },
     capacity: 33.2,
     maxLoad: 28180,
-    features: ['Dry cargo', 'General purpose', 'Most common size']
+    features: ['Dry cargo', 'General purpose', 'Most common size'],
+    image: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=400&h=300&fit=crop'
   },
   {
     id: '40ft-standard',
@@ -161,7 +162,8 @@ export const CONTAINERS: Container[] = [
     },
     capacity: 67.5,
     maxLoad: 26680,
-    features: ['Dry cargo', 'Large capacity', 'Cost-effective for bulk']
+    features: ['Dry cargo', 'Large capacity', 'Cost-effective for bulk'],
+    image: 'https://images.unsplash.com/photo-1494412574643-ff11b0a5c1c3?w=400&h=300&fit=crop'
   },
   {
     id: '40ft-high-cube',
@@ -175,7 +177,8 @@ export const CONTAINERS: Container[] = [
     },
     capacity: 76.3,
     maxLoad: 26500,
-    features: ['Extra height', 'Large volume cargo', 'Popular choice']
+    features: ['Extra height', 'Large volume cargo', 'Popular choice'],
+    image: 'https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=400&h=300&fit=crop'
   },
   {
     id: '20ft-refrigerated',
@@ -189,7 +192,8 @@ export const CONTAINERS: Container[] = [
     },
     capacity: 28.3,
     maxLoad: 27400,
-    features: ['Temperature controlled', '-25°C to +25°C', 'Perishable goods']
+    features: ['Temperature controlled', '-25°C to +25°C', 'Perishable goods'],
+    image: 'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=400&h=300&fit=crop'
   },
   {
     id: '40ft-refrigerated',
@@ -203,7 +207,8 @@ export const CONTAINERS: Container[] = [
     },
     capacity: 67.3,
     maxLoad: 26780,
-    features: ['Temperature controlled', '-25°C to +25°C', 'Large reefer capacity']
+    features: ['Temperature controlled', '-25°C to +25°C', 'Large reefer capacity'],
+    image: 'https://images.unsplash.com/photo-1493946740644-2d8a1f1a6aff?w=400&h=300&fit=crop'
   }
 ];
 
@@ -282,22 +287,23 @@ export const HOW_IT_WORKS_STEPS: Step[] = [
 ];
 
 export const CONTACT_INFO = {
-  address: 'No. 123, Marine Drive, Colombo 03, Sri Lanka',
-  phone: '+94 11 234 5678',
-  email: 'info@ceyloncargo.lk',
-  supportEmail: 'support@ceyloncargo.lk',
-  supportPhone: '+94 77 234 5679',
-  salesEmail: 'sales@ceyloncargo.lk',
-  salesPhone: '+94 77 234 5678',
+  address: 'B05, Lek muoy, Sangkat 1, Preah Sihanouk, Cambodia',
+  phone: '+855 95 386 475',
+  email: 'info.cct@ceylongrp.com',
+  supportEmail: 'info.cct@ceylongrp.com',
+  supportPhone: '+855 95 386 475',
+  salesEmail: 'info.cct@ceylongrp.com',
+  salesPhone: '+855 95 386 475',
   hours: 'Monday - Friday: 9:00 AM - 6:00 PM',
   support247: '24/7'
 };
 
 export const SOCIAL_LINKS = {
   linkedin: 'https://linkedin.com/company/ceyloncargo',
-  facebook: 'https://facebook.com/ceyloncargo',
+  facebook: 'https://www.facebook.com/share/1CNmDjWEJg/?mibextid=wwXIfr',
   twitter: 'https://twitter.com/ceyloncargo',
-  instagram: 'https://instagram.com/ceyloncargo'
+  instagram: 'https://instagram.com/ceyloncargo',
+  telegram: 'https://t.me/CEYLONCARGO'
 };
 
 // Client portal URLs

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { Navbar } from '../components/layout/Navbar';
 import { Footer } from '../components/layout/Footer';
+import { LoadingScreen } from '../components/LoadingScreen';
 import './globals.css';
 
 const inter = Inter({
@@ -79,6 +80,7 @@ export default function RootLayout({
         <link rel="manifest" href="/site.webmanifest" />
       </head>
       <body className={inter.className}>
+        <LoadingScreen />
         <Navbar />
         <main className="min-h-screen">{children}</main>
         <Footer />

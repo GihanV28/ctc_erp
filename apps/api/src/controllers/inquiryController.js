@@ -126,12 +126,14 @@ exports.submitInquiry = asyncHandler(async (req, res, next) => {
     });
 
     // Send confirmation email to user
-    const logoUrl = 'https://www.cct.ceylongrp.com/images/logo/logo.png';
+    // Using CID attachment for embedded logo image (most reliable method for email clients)
     const confirmationHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-        <!-- Header with Logo -->
+        <!-- Header with Embedded Logo -->
         <div style="background-color: #1e1b4b; padding: 24px; text-align: center; border-radius: 8px 8px 0 0;">
-          <img src="${logoUrl}" alt="Ceylon Cargo Transport" style="height: 60px; width: auto;" />
+          <a href="https://cct.ceylongrp.com" style="text-decoration: none;">
+            <img src="cid:companyLogo" alt="Ceylon Cargo Transport" style="height: 60px; width: auto; display: block; margin: 0 auto;" />
+          </a>
         </div>
 
         <!-- Main Content -->
@@ -174,10 +176,20 @@ exports.submitInquiry = asyncHandler(async (req, res, next) => {
       </div>
     `;
 
+    // Logo attachment for embedding in email (CID = Content-ID for inline embedding)
+    const logoPath = path.join(__dirname, '../../public/images/logo.png');
+
     await emailService.sendEmail({
       to: email,
       subject: 'Inquiry Confirmation - Ceylon Cargo Transport',
       html: confirmationHtml,
+      attachments: [
+        {
+          filename: 'logo.png',
+          path: logoPath,
+          cid: 'companyLogo' // Same as the cid used in img src
+        }
+      ]
     });
 
     res.json(new ApiResponse(200, {

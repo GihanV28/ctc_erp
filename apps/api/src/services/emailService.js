@@ -14,7 +14,7 @@ const createTransporter = () => {
 };
 
 // Send email
-exports.sendEmail = async ({ to, subject, text, html }) => {
+exports.sendEmail = async ({ to, subject, text, html, attachments }) => {
   try {
     const transporter = createTransporter();
 
@@ -26,6 +26,7 @@ exports.sendEmail = async ({ to, subject, text, html }) => {
       subject,
       text,
       html,
+      attachments,
     };
 
     const info = await transporter.sendMail(mailOptions);

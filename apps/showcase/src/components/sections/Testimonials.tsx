@@ -51,20 +51,20 @@ export const Testimonials: React.FC = () => {
     <Section id="testimonials" background="gray" paddingY="xl">
       <Container>
         <FadeIn>
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-10 sm:mb-16 px-4 sm:px-0">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
               What Our Clients Say
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
               Don&apos;t just take our word for it
             </p>
           </div>
         </FadeIn>
 
         {/* Carousel */}
-        <div className="relative">
+        <div className="relative px-4 sm:px-0">
           {/* Testimonial Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mb-6 sm:mb-8">
             {getVisibleTestimonials().map((testimonial, index) => (
               <div
                 key={`${testimonial.id}-${currentIndex}-${index}`}
@@ -84,31 +84,31 @@ export const Testimonials: React.FC = () => {
           </div>
 
           {/* Navigation Arrows */}
-          <div className="flex justify-center items-center gap-4 mb-6">
+          <div className="flex justify-center items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
             <button
               onClick={goToPrevious}
-              className="p-3 rounded-full bg-white shadow-lg hover:bg-violet-50 transition-colors"
+              className="p-2 sm:p-3 rounded-full bg-white shadow-lg hover:bg-violet-50 transition-colors"
               aria-label="Previous testimonial"
             >
-              <ChevronLeft className="h-6 w-6 text-violet-600" />
+              <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6 text-violet-600" />
             </button>
             <button
               onClick={goToNext}
-              className="p-3 rounded-full bg-white shadow-lg hover:bg-violet-50 transition-colors"
+              className="p-2 sm:p-3 rounded-full bg-white shadow-lg hover:bg-violet-50 transition-colors"
               aria-label="Next testimonial"
             >
-              <ChevronRight className="h-6 w-6 text-violet-600" />
+              <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6 text-violet-600" />
             </button>
           </div>
 
           {/* Dot Indicators */}
-          <div className="flex justify-center gap-2">
+          <div className="flex justify-center gap-1.5 sm:gap-2 flex-wrap">
             {TESTIMONIALS.map((_, index) => (
               <button
                 key={index}
                 onClick={() => goToSlide(index)}
-                className={`h-3 w-3 rounded-full transition-all duration-300 ${
-                  index === currentIndex ? 'bg-violet-600 w-8' : 'bg-gray-300 hover:bg-gray-400'
+                className={`h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full transition-all duration-300 ${
+                  index === currentIndex ? 'bg-violet-600 w-6 sm:w-8' : 'bg-gray-300 hover:bg-gray-400'
                 }`}
                 aria-label={`Go to testimonial ${index + 1}`}
               />

@@ -44,10 +44,10 @@ export const Section = React.forwardRef<HTMLElement, SectionProps>(
     };
 
     const paddingClasses = {
-      sm: 'py-12',
-      md: 'py-16',
-      lg: 'py-20',
-      xl: 'py-24'
+      sm: 'py-8 sm:py-10 md:py-12',
+      md: 'py-10 sm:py-12 md:py-16',
+      lg: 'py-12 sm:py-16 md:py-20',
+      xl: 'py-14 sm:py-18 md:py-24'
     };
 
     return (

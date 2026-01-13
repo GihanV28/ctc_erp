@@ -40,19 +40,45 @@ export const isValidEmail = (email: string): boolean => {
   return regex.test(email);
 };
 
-// Handle form submission (mock - in production, this would send to API)
+// Handle form submission - sends to backend API
 export const submitContactForm = async (data: Partial<ContactFormData> & { name: string; email: string; message: string }): Promise<{ success: boolean; message: string }> => {
-  console.log('Form submitted:', data);
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.cct.ceylongrp.com';
 
-  // Simulate API call
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
+  try {
+    const response = await fetch(`${apiUrl}/api/inquiries`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: data.name,
+        email: data.email,
+        subject: data.service ? `Inquiry about ${data.service}` : 'General Inquiry',
+        category: data.service || 'general',
+        message: `${data.message}${data.company ? `\n\nCompany: ${data.company}` : ''}${data.phone ? `\nPhone: ${data.phone}` : ''}`,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      return {
         success: true,
-        message: 'Thank you for contacting us! We will get back to you within 24 hours.'
-      });
-    }, 1000);
-  });
+        message: result.message || 'Thank you for contacting us! We will get back to you within 24 hours.'
+      };
+    } else {
+      return {
+        success: false,
+        message: result.message || 'Failed to send message. Please try again.'
+      };
+    }
+  } catch (error) {
+    console.error('Form submission error:', error);
+    return {
+      success: false,
+      message: 'Failed to send message. Please try again later.'
+    };
+  }
 };
 
 // Format number with commas

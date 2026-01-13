@@ -44,13 +44,13 @@ export interface ServiceCardProps {
 
 export const ServiceCard: React.FC<ServiceCardProps> = ({ icon, title, description, link, onClick }) => {
   return (
-    <Card variant="hover" className="cursor-pointer" onClick={onClick}>
-      <div className="flex flex-col items-center text-center space-y-4">
-        <div className="text-violet-600">{icon}</div>
-        <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
-        <p className="text-gray-600 leading-relaxed">{description}</p>
+    <Card variant="hover" className="cursor-pointer h-full" onClick={onClick}>
+      <div className="flex flex-col items-center text-center h-full">
+        <div className="text-violet-600 mb-4">{icon}</div>
+        <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3">{title}</h3>
+        <p className="text-sm sm:text-base text-gray-600 leading-relaxed flex-grow mb-4">{description}</p>
         {link && (
-          <a href={link} className="text-violet-600 font-medium hover:text-violet-700 transition-colors">
+          <a href={link} className="text-violet-600 font-medium hover:text-violet-700 transition-colors mt-auto">
             Learn More →
           </a>
         )}
@@ -67,11 +67,11 @@ export interface FeatureCardProps {
 
 export const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description }) => {
   return (
-    <Card variant="hover">
-      <div className="flex flex-col items-start space-y-4">
-        <div className="p-3 bg-violet-100 rounded-lg text-violet-600">{icon}</div>
-        <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
-        <p className="text-gray-600 leading-relaxed">{description}</p>
+    <Card variant="hover" className="h-full">
+      <div className="flex flex-col items-start h-full">
+        <div className="p-3 bg-violet-100 rounded-lg text-violet-600 mb-4">{icon}</div>
+        <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3">{title}</h3>
+        <p className="text-sm sm:text-base text-gray-600 leading-relaxed flex-grow">{description}</p>
       </div>
     </Card>
   );
@@ -90,14 +90,14 @@ export interface TestimonialCardProps {
 
 export const TestimonialCard: React.FC<TestimonialCardProps> = ({ content, author, rating }) => {
   return (
-    <Card variant="bordered" padding="lg">
-      <div className="flex flex-col space-y-4">
+    <Card variant="bordered" padding="lg" className="h-full">
+      <div className="flex flex-col h-full">
         {/* Rating */}
-        <div className="flex gap-1">
+        <div className="flex gap-1 mb-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <svg
               key={i}
-              className={cn('h-5 w-5', i < rating ? 'text-orange-500' : 'text-gray-300')}
+              className={cn('h-4 w-4 sm:h-5 sm:w-5', i < rating ? 'text-orange-500' : 'text-gray-300')}
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -107,20 +107,20 @@ export const TestimonialCard: React.FC<TestimonialCardProps> = ({ content, autho
         </div>
 
         {/* Content */}
-        <p className="text-gray-700 leading-relaxed italic">&quot;{content}&quot;</p>
+        <p className="text-sm sm:text-base text-gray-700 leading-relaxed italic flex-grow mb-4">&quot;{content}&quot;</p>
 
         {/* Author */}
-        <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+        <div className="flex items-center gap-3 pt-4 border-t border-gray-200 mt-auto">
           {author.avatar ? (
-            <img src={author.avatar} alt={author.name} className="h-12 w-12 rounded-full" />
+            <img src={author.avatar} alt={author.name} className="h-10 w-10 sm:h-12 sm:w-12 rounded-full object-cover" />
           ) : (
-            <div className="h-12 w-12 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 font-semibold">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 font-semibold text-sm sm:text-base">
               {author.name.charAt(0)}
             </div>
           )}
-          <div>
-            <p className="font-semibold text-gray-900">{author.name}</p>
-            <p className="text-sm text-gray-600">
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">{author.name}</p>
+            <p className="text-xs sm:text-sm text-gray-600 truncate">
               {author.position} at {author.company}
             </p>
           </div>
