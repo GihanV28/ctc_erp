@@ -126,34 +126,50 @@ exports.submitInquiry = asyncHandler(async (req, res, next) => {
     });
 
     // Send confirmation email to user
+    const logoUrl = 'https://www.cct.ceylongrp.com/images/logo/logo.png';
     const confirmationHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #7c3aed; border-bottom: 2px solid #7c3aed; padding-bottom: 10px;">
-          Thank you for contacting Ceylon Cargo Transport
-        </h2>
-
-        <p>Dear ${name},</p>
-
-        <p>We have received your inquiry and will get back to you as soon as possible.</p>
-
-        <div style="margin: 20px 0; padding: 15px; background-color: #f3f4f6; border-radius: 8px;">
-          <h3 style="color: #374151; margin-top: 0;">Your Inquiry Details</h3>
-          <p><strong>Subject:</strong> ${subject}</p>
-          <p><strong>Category:</strong> ${category || 'General Inquiry'}</p>
-          ${attachmentInfo ? `<p><strong>Attachment:</strong> ${attachmentInfo.originalname}</p>` : ''}
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+        <!-- Header with Logo -->
+        <div style="background-color: #1e1b4b; padding: 24px; text-align: center; border-radius: 8px 8px 0 0;">
+          <img src="${logoUrl}" alt="Ceylon Cargo Transport" style="height: 60px; width: auto;" />
         </div>
 
-        <p>Our support team will review your message and respond within 24-48 hours.</p>
+        <!-- Main Content -->
+        <div style="padding: 32px 24px; border: 1px solid #e5e7eb; border-top: none;">
+          <h2 style="color: #7c3aed; margin-top: 0; margin-bottom: 24px;">
+            Thank you for contacting Ceylon Cargo Transport
+          </h2>
 
-        <p>If you have any urgent questions, please contact us at:</p>
-        <ul>
-          <li>Email: info.cct@ceylongrp.com</li>
-          <li>Phone: +94 11 234 5678</li>
-        </ul>
+          <p style="color: #374151; font-size: 16px;">Dear ${name},</p>
 
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px;">
-          <p>Best regards,<br>Ceylon Cargo Transport Team</p>
-          <p style="margin-top: 15px;">This is an automated confirmation email.</p>
+          <p style="color: #374151; font-size: 16px;">We have received your inquiry and will get back to you as soon as possible.</p>
+
+          <div style="margin: 24px 0; padding: 20px; background-color: #f3f4f6; border-radius: 8px; border-left: 4px solid #7c3aed;">
+            <h3 style="color: #374151; margin-top: 0; margin-bottom: 12px;">Your Inquiry Details</h3>
+            <p style="margin: 8px 0; color: #374151;"><strong>Subject:</strong> ${subject}</p>
+            <p style="margin: 8px 0; color: #374151;"><strong>Category:</strong> ${category || 'General Inquiry'}</p>
+            ${attachmentInfo ? `<p style="margin: 8px 0; color: #374151;"><strong>Attachment:</strong> ${attachmentInfo.originalname}</p>` : ''}
+          </div>
+
+          <p style="color: #374151; font-size: 16px;">Our support team will review your message and respond within 24-48 hours.</p>
+
+          <p style="color: #374151; font-size: 16px;">If you have any urgent questions, please contact us at:</p>
+          <ul style="color: #374151; font-size: 16px;">
+            <li>Email: <a href="mailto:info.cct@ceylongrp.com" style="color: #7c3aed;">info.cct@ceylongrp.com</a></li>
+            <li>Phone: +855 95 386 475</li>
+            <li>Telegram: <a href="https://t.me/CEYLONCARGO" style="color: #7c3aed;">@CEYLONCARGO</a></li>
+          </ul>
+        </div>
+
+        <!-- Footer -->
+        <div style="background-color: #1e1b4b; padding: 24px; text-align: center; border-radius: 0 0 8px 8px;">
+          <p style="color: #ffffff; margin: 0 0 8px 0; font-size: 14px;">Best regards,<br><strong>Ceylon Cargo Transport Team</strong></p>
+          <p style="color: #a5b4fc; margin: 0; font-size: 12px;">B05, Lek muoy, Sangkat 1, Preah Sihanouk, Cambodia</p>
+          <div style="margin-top: 16px;">
+            <a href="https://www.facebook.com/share/1CNmDjWEJg/" style="color: #a5b4fc; text-decoration: none; margin: 0 8px;">Facebook</a>
+            <a href="https://t.me/CEYLONCARGO" style="color: #a5b4fc; text-decoration: none; margin: 0 8px;">Telegram</a>
+          </div>
+          <p style="color: #6b7280; margin: 16px 0 0 0; font-size: 11px;">This is an automated confirmation email.</p>
         </div>
       </div>
     `;
