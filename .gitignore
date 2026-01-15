@@ -46,6 +46,7 @@ nul
 tmp/
 temp/
 c:tempipconfig.txt
+tmpclaude-*
 
 # Logs
 logs/

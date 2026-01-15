@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname, useRouter } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { cn, scrollToSection } from '../../lib/utils';
@@ -11,6 +12,9 @@ import { NAV_LINKS, SIGNUP_URL, LOGIN_URL } from '../../lib/constants';
 export const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
+  const isHomePage = pathname === '/';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -25,8 +29,15 @@ export const Navbar: React.FC = () => {
     if (href.startsWith('#')) {
       e.preventDefault();
       const sectionId = href.substring(1);
-      scrollToSection(sectionId);
       setIsMobileMenuOpen(false);
+
+      if (isHomePage) {
+        // On home page, just scroll to the section
+        scrollToSection(sectionId);
+      } else {
+        // On subpages, navigate to home page with hash
+        router.push(`/${href}`);
+      }
     }
   };
 
@@ -44,8 +55,10 @@ export const Navbar: React.FC = () => {
             href="/"
             className="flex items-center hover:opacity-80 transition-opacity"
             onClick={(e) => {
-              e.preventDefault();
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+              if (isHomePage) {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
               setIsMobileMenuOpen(false);
             }}
           >
