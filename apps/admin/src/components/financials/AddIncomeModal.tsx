@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { X, Check, TrendingUp } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { X, Check, TrendingUp, Plus, Trash2 } from 'lucide-react';
 import type { Income, IncomeFormData, IncomeSource } from './types';
 import { financialService, type IncomeSource as IncomeSourceType } from '@/services/financialService';
 
@@ -11,22 +11,24 @@ interface AddIncomeModalProps {
   onSave: (income: Income) => void;
 }
 
+const getInitialFormData = (): IncomeFormData => ({
+  source: '',
+  description: '',
+  amount: '',
+  currency: 'USD',
+  date: new Date().toISOString().split('T')[0],
+  shipmentId: '',
+  clientId: '',
+  invoiceId: '',
+  paymentMethod: 'Bank Transfer',
+  status: 'pending',
+  amountReceived: '',
+  dueDate: '',
+  notes: ''
+});
+
 export default function AddIncomeModal({ isOpen, onClose, onSave }: AddIncomeModalProps) {
-  const [formData, setFormData] = useState<IncomeFormData>({
-    source: '',
-    description: '',
-    amount: '',
-    currency: 'USD',
-    date: new Date().toISOString().split('T')[0],
-    shipmentId: '',
-    clientId: '',
-    invoiceId: '',
-    paymentMethod: 'Bank Transfer',
-    status: 'pending',
-    amountReceived: '',
-    dueDate: '',
-    notes: ''
-  });
+  const [formData, setFormData] = useState<IncomeFormData>(getInitialFormData());
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sources, setSources] = useState<IncomeSourceType[]>([]);
@@ -34,13 +36,44 @@ export default function AddIncomeModal({ isOpen, onClose, onSave }: AddIncomeMod
   const [newSourceName, setNewSourceName] = useState('');
   const [loadingSources, setLoadingSources] = useState(false);
   const [creatingSource, setCreatingSource] = useState(false);
+  const [deletingSourceId, setDeletingSourceId] = useState<string | null>(null);
+  const [isSourceDropdownOpen, setIsSourceDropdownOpen] = useState(false);
 
-  // Load sources on mount
+  const sourceDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Reset modal state when opening
+  const resetModalState = useCallback(() => {
+    setFormData(getInitialFormData());
+    setErrors({});
+    setShowAddSource(false);
+    setNewSourceName('');
+    setIsSourceDropdownOpen(false);
+  }, []);
+
+  // Load sources and reset state when modal opens
   useEffect(() => {
     if (isOpen) {
+      resetModalState();
       loadSources();
     }
-  }, [isOpen]);
+  }, [isOpen, resetModalState]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sourceDropdownRef.current && !sourceDropdownRef.current.contains(event.target as Node)) {
+        setIsSourceDropdownOpen(false);
+      }
+    };
+
+    if (isSourceDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isSourceDropdownOpen]);
 
   const loadSources = async () => {
     try {
@@ -71,6 +104,28 @@ export default function AddIncomeModal({ isOpen, onClose, onSave }: AddIncomeMod
       alert(error.message || 'Failed to create source');
     } finally {
       setCreatingSource(false);
+    }
+  };
+
+  const handleDeleteSource = async (sourceId: string, sourceValue: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!confirm('Are you sure you want to delete this income source?')) {
+      return;
+    }
+
+    try {
+      setDeletingSourceId(sourceId);
+      await financialService.deleteIncomeSource(sourceId);
+      setSources(sources.filter(src => src._id !== sourceId));
+      // Clear selection if deleted source was selected
+      if (formData.source === sourceValue) {
+        setFormData(prev => ({ ...prev, source: '' }));
+      }
+    } catch (error: any) {
+      alert(error.message || 'Failed to delete income source');
+    } finally {
+      setDeletingSourceId(null);
     }
   };
 
@@ -114,24 +169,6 @@ export default function AddIncomeModal({ isOpen, onClose, onSave }: AddIncomeMod
 
       const createdIncome = await financialService.createIncome(incomeData);
       onSave(createdIncome);
-
-      // Reset form
-      setFormData({
-        source: '',
-        description: '',
-        amount: '',
-        currency: 'USD',
-        date: new Date().toISOString().split('T')[0],
-        shipmentId: '',
-        clientId: '',
-        invoiceId: '',
-        paymentMethod: 'Bank Transfer',
-        status: 'pending',
-        amountReceived: '',
-        dueDate: '',
-        notes: ''
-      });
-      setErrors({});
       onClose();
     } catch (error: any) {
       alert(error.message || 'Failed to create income');
@@ -167,32 +204,69 @@ export default function AddIncomeModal({ isOpen, onClose, onSave }: AddIncomeMod
                   Income Source <span className="text-red-500">*</span>
                 </label>
                 {!showAddSource ? (
-                  <div className="relative">
-                    <select
-                      value={formData.source}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === '__ADD_NEW__') {
-                          setShowAddSource(true);
-                        } else {
-                          setFormData(prev => ({ ...prev, source: value as IncomeSource }));
-                        }
-                      }}
+                  <div className="relative" ref={sourceDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsSourceDropdownOpen(!isSourceDropdownOpen)}
                       className={`w-full px-4 py-2.5 rounded-lg border ${
                         errors.source ? 'border-red-300' : 'border-gray-200'
-                      } focus:outline-none focus:ring-2 focus:ring-purple-500`}
+                      } focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-left flex items-center justify-between`}
                       disabled={loadingSources}
                     >
-                      <option value="">
-                        {loadingSources ? 'Loading sources...' : 'Select income source'}
-                      </option>
-                      {sources.map(source => (
-                        <option key={source._id} value={source.value}>{source.label}</option>
-                      ))}
-                      <option value="__ADD_NEW__" className="font-semibold text-green-600">
-                        + Add New Source
-                      </option>
-                    </select>
+                      <span className={formData.source ? 'text-gray-900' : 'text-gray-500'}>
+                        {loadingSources
+                          ? 'Loading sources...'
+                          : formData.source
+                            ? sources.find(s => s.value === formData.source)?.label || formData.source
+                            : 'Select income source'}
+                      </span>
+                      <svg className={`w-4 h-4 transition-transform ${isSourceDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {isSourceDropdownOpen && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {sources.map(source => (
+                          <div
+                            key={source._id}
+                            className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 cursor-pointer group"
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, source: source.value as IncomeSource }));
+                              setIsSourceDropdownOpen(false);
+                            }}
+                          >
+                            <span className={formData.source === source.value ? 'text-green-600 font-medium' : 'text-gray-700'}>
+                              {source.label}
+                            </span>
+                            {!source.isSystem && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeleteSource(source._id, source.value, e)}
+                                disabled={deletingSourceId === source._id}
+                                className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                                title="Delete income source"
+                              >
+                                {deletingSourceId === source._id ? (
+                                  <span className="text-xs">...</span>
+                                ) : (
+                                  <Trash2 size={14} />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <div
+                          className="flex items-center gap-2 px-4 py-2.5 hover:bg-green-50 cursor-pointer text-green-600 font-medium border-t border-gray-100"
+                          onClick={() => {
+                            setShowAddSource(true);
+                            setIsSourceDropdownOpen(false);
+                          }}
+                        >
+                          <Plus size={16} />
+                          Add New Source
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="flex gap-2">
@@ -201,7 +275,7 @@ export default function AddIncomeModal({ isOpen, onClose, onSave }: AddIncomeMod
                       value={newSourceName}
                       onChange={(e) => setNewSourceName(e.target.value)}
                       placeholder="Enter source name"
-                      className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500"
                       disabled={creatingSource}
                     />
                     <button

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { X, Check, DollarSign, Plus } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { X, Check, DollarSign, Plus, Trash2 } from 'lucide-react';
 import type { Expense, ExpenseFormData, ExpenseCategory } from './types';
 import { financialService, type ExpenseCategory as ExpenseCategoryType } from '@/services/financialService';
 
@@ -11,22 +11,24 @@ interface AddExpenseModalProps {
   onSave: (expense: Expense) => void;
 }
 
+const getInitialFormData = (): ExpenseFormData => ({
+  category: '',
+  description: '',
+  amount: '',
+  currency: 'USD',
+  date: new Date().toISOString().split('T')[0],
+  shipmentId: '',
+  containerId: '',
+  supplierId: '',
+  paymentMethod: 'Bank Transfer',
+  invoiceNumber: '',
+  status: 'pending',
+  attachments: [],
+  notes: ''
+});
+
 export default function AddExpenseModal({ isOpen, onClose, onSave }: AddExpenseModalProps) {
-  const [formData, setFormData] = useState<ExpenseFormData>({
-    category: '',
-    description: '',
-    amount: '',
-    currency: 'USD',
-    date: new Date().toISOString().split('T')[0],
-    shipmentId: '',
-    containerId: '',
-    supplierId: '',
-    paymentMethod: 'Bank Transfer',
-    invoiceNumber: '',
-    status: 'pending',
-    attachments: [],
-    notes: ''
-  });
+  const [formData, setFormData] = useState<ExpenseFormData>(getInitialFormData());
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [categories, setCategories] = useState<ExpenseCategoryType[]>([]);
@@ -34,13 +36,44 @@ export default function AddExpenseModal({ isOpen, onClose, onSave }: AddExpenseM
   const [newCategoryName, setNewCategoryName] = useState('');
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [creatingCategory, setCreatingCategory] = useState(false);
+  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
 
-  // Load categories on mount
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Reset modal state when opening
+  const resetModalState = useCallback(() => {
+    setFormData(getInitialFormData());
+    setErrors({});
+    setShowAddCategory(false);
+    setNewCategoryName('');
+    setIsCategoryDropdownOpen(false);
+  }, []);
+
+  // Load categories and reset state when modal opens
   useEffect(() => {
     if (isOpen) {
+      resetModalState();
       loadCategories();
     }
-  }, [isOpen]);
+  }, [isOpen, resetModalState]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+
+    if (isCategoryDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isCategoryDropdownOpen]);
 
   const loadCategories = async () => {
     try {
@@ -71,6 +104,28 @@ export default function AddExpenseModal({ isOpen, onClose, onSave }: AddExpenseM
       alert(error.message || 'Failed to create category');
     } finally {
       setCreatingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId: string, categoryValue: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!confirm('Are you sure you want to delete this category?')) {
+      return;
+    }
+
+    try {
+      setDeletingCategoryId(categoryId);
+      await financialService.deleteExpenseCategory(categoryId);
+      setCategories(categories.filter(cat => cat._id !== categoryId));
+      // Clear selection if deleted category was selected
+      if (formData.category === categoryValue) {
+        setFormData(prev => ({ ...prev, category: '' }));
+      }
+    } catch (error: any) {
+      alert(error.message || 'Failed to delete category');
+    } finally {
+      setDeletingCategoryId(null);
     }
   };
 
@@ -105,24 +160,6 @@ export default function AddExpenseModal({ isOpen, onClose, onSave }: AddExpenseM
 
       const createdExpense = await financialService.createExpense(expenseData);
       onSave(createdExpense);
-
-      // Reset form
-      setFormData({
-        category: '',
-        description: '',
-        amount: '',
-        currency: 'USD',
-        date: new Date().toISOString().split('T')[0],
-        shipmentId: '',
-        containerId: '',
-        supplierId: '',
-        paymentMethod: 'Bank Transfer',
-        invoiceNumber: '',
-        status: 'pending',
-        attachments: [],
-        notes: ''
-      });
-      setErrors({});
       onClose();
     } catch (error: any) {
       alert(error.message || 'Failed to create expense');
@@ -158,32 +195,69 @@ export default function AddExpenseModal({ isOpen, onClose, onSave }: AddExpenseM
                   Category <span className="text-red-500">*</span>
                 </label>
                 {!showAddCategory ? (
-                  <div className="relative">
-                    <select
-                      value={formData.category}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === '__ADD_NEW__') {
-                          setShowAddCategory(true);
-                        } else {
-                          setFormData(prev => ({ ...prev, category: value as ExpenseCategory }));
-                        }
-                      }}
+                  <div className="relative" ref={categoryDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
                       className={`w-full px-4 py-2.5 rounded-lg border ${
                         errors.category ? 'border-red-300' : 'border-gray-200'
-                      } focus:outline-none focus:ring-2 focus:ring-purple-500`}
+                      } focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-left flex items-center justify-between`}
                       disabled={loadingCategories}
                     >
-                      <option value="">
-                        {loadingCategories ? 'Loading categories...' : 'Select category'}
-                      </option>
-                      {categories.map(cat => (
-                        <option key={cat._id} value={cat.value}>{cat.label}</option>
-                      ))}
-                      <option value="__ADD_NEW__" className="font-semibold text-purple-600">
-                        + Add New Category
-                      </option>
-                    </select>
+                      <span className={formData.category ? 'text-gray-900' : 'text-gray-500'}>
+                        {loadingCategories
+                          ? 'Loading categories...'
+                          : formData.category
+                            ? categories.find(c => c.value === formData.category)?.label || formData.category
+                            : 'Select category'}
+                      </span>
+                      <svg className={`w-4 h-4 transition-transform ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {isCategoryDropdownOpen && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {categories.map(cat => (
+                          <div
+                            key={cat._id}
+                            className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 cursor-pointer group"
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, category: cat.value as ExpenseCategory }));
+                              setIsCategoryDropdownOpen(false);
+                            }}
+                          >
+                            <span className={formData.category === cat.value ? 'text-purple-600 font-medium' : 'text-gray-700'}>
+                              {cat.label}
+                            </span>
+                            {!cat.isSystem && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeleteCategory(cat._id, cat.value, e)}
+                                disabled={deletingCategoryId === cat._id}
+                                className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                                title="Delete category"
+                              >
+                                {deletingCategoryId === cat._id ? (
+                                  <span className="text-xs">...</span>
+                                ) : (
+                                  <Trash2 size={14} />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <div
+                          className="flex items-center gap-2 px-4 py-2.5 hover:bg-purple-50 cursor-pointer text-purple-600 font-medium border-t border-gray-100"
+                          onClick={() => {
+                            setShowAddCategory(true);
+                            setIsCategoryDropdownOpen(false);
+                          }}
+                        >
+                          <Plus size={16} />
+                          Add New Category
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="flex gap-2">

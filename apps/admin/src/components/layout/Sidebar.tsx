@@ -36,6 +36,7 @@ const navItems: NavItem[] = [
     label: 'Team Management',
     href: '/dashboard/team',
     icon: <Shield className="h-5 w-5" />,
+    superAdminOnly: true,
   },
   {
     label: 'Tracking Update',
