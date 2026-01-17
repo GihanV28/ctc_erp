@@ -11,7 +11,8 @@ import {
   FileText,
   HelpCircle,
   Settings,
-  LogOut
+  LogOut,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -24,7 +25,12 @@ const navigation = [
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -35,14 +41,36 @@ export default function Sidebar() {
   };
 
   return (
-    <div className="fixed left-0 top-0 flex flex-col h-screen w-64 bg-gray-900 text-white z-40">
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div
+        className={cn(
+          "fixed left-0 top-0 flex flex-col h-screen w-64 bg-gray-900 text-white z-50 transition-transform duration-300 ease-in-out",
+          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
+      >
       {/* Logo */}
-      <div className="flex items-center justify-center p-6 border-b border-gray-800">
+      <div className="flex items-center justify-between p-6 border-b border-gray-800">
         <img
           src="/images/logo/logo.png"
           alt="Ceylon Cargo Transport"
           className="h-12 w-auto object-contain"
         />
+        {/* Close button for mobile */}
+        <button
+          onClick={onClose}
+          className="lg:hidden text-gray-400 hover:text-white transition-colors"
+        >
+          <X className="w-6 h-6" />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -55,6 +83,7 @@ export default function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
+              onClick={() => onClose()}
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                 isActive
@@ -80,5 +109,6 @@ export default function Sidebar() {
         </button>
       </div>
     </div>
+    </>
   );
 }

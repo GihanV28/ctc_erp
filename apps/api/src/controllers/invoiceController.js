@@ -214,6 +214,28 @@ exports.cancelInvoice = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Delete invoice
+ * @route   DELETE /api/invoices/:id
+ * @access  Private (invoices:delete)
+ */
+exports.deleteInvoice = asyncHandler(async (req, res) => {
+  const invoice = await Invoice.findById(req.params.id);
+
+  if (!invoice) {
+    throw new ApiError('Invoice not found', 404);
+  }
+
+  // Cannot delete paid invoices
+  if (invoice.status === 'paid') {
+    throw new ApiError('Cannot delete paid invoice. Cancel it first if needed.', 400);
+  }
+
+  await Invoice.findByIdAndDelete(req.params.id);
+
+  new ApiResponse(200, null, 'Invoice deleted successfully').send(res);
+});
+
+/**
  * @desc    Get invoice statistics
  * @route   GET /api/invoices/stats
  * @access  Private (invoices:read)
@@ -388,4 +410,85 @@ exports.previewShipmentInvoice = asyncHandler(async (req, res) => {
       notes: shipment.notes || '',
     },
   }, 'Invoice preview fetched successfully').send(res);
+});
+
+/**
+ * @desc    Generate and download invoice PDF by invoice ID
+ * @route   GET /api/invoices/:id/pdf
+ * @access  Private
+ */
+exports.generateInvoicePDF = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // Find invoice and populate details
+  const invoice = await Invoice.findById(id)
+    .populate('client')
+    .populate('shipment');
+
+  if (!invoice) {
+    throw new ApiError('Invoice not found', 404);
+  }
+
+  // If invoice has a shipment, use the shipment-based PDF generator
+  if (invoice.shipment) {
+    const shipment = await Shipment.findById(invoice.shipment._id).populate('client');
+    if (shipment) {
+      const lineItems = invoice.items.map(item => ({
+        description: item.description,
+        hs: '',
+        qty: item.quantity,
+        cartons: 0,
+        netWeight: 0,
+        grossWeight: 0,
+        dimensions: '',
+        freight: item.amount,
+        customs: 0,
+        total: item.amount,
+      }));
+
+      const pdfBuffer = await generateInvoicePDF(shipment, lineItems);
+
+      const filename = `Invoice-${invoice.invoiceNumber}-${Date.now()}.pdf`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+
+      return res.send(pdfBuffer);
+    }
+  }
+
+  // For invoices without shipment, create a basic structure using client info
+  const mockShipment = {
+    shipmentId: invoice.invoiceNumber,
+    trackingNumber: invoice.invoiceNumber,
+    client: invoice.client,
+    origin: { port: 'N/A', country: '' },
+    destination: { port: 'N/A', country: '' },
+    cargo: { description: 'Invoice Items' },
+    dates: { estimatedArrival: invoice.dueDate },
+    totalCost: invoice.total,
+    notes: invoice.notes,
+  };
+
+  const lineItems = invoice.items.map(item => ({
+    description: item.description,
+    hs: '',
+    qty: item.quantity,
+    cartons: 0,
+    netWeight: 0,
+    grossWeight: 0,
+    dimensions: '',
+    freight: item.amount,
+    customs: 0,
+    total: item.amount,
+  }));
+
+  const pdfBuffer = await generateInvoicePDF(mockShipment, lineItems);
+
+  const filename = `Invoice-${invoice.invoiceNumber}-${Date.now()}.pdf`;
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Length', pdfBuffer.length);
+
+  res.send(pdfBuffer);
 });

@@ -233,9 +233,9 @@ export default function ShipmentsPage() {
           </div>
         )}
 
-        {/* Shipments Table */}
+        {/* Shipments Table - Desktop */}
         {!loading && filteredShipments.length > 0 && (
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="hidden md:block bg-white rounded-2xl border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
@@ -334,6 +334,99 @@ export default function ShipmentsPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* Shipments Cards - Mobile */}
+        {!loading && filteredShipments.length > 0 && (
+          <div className="md:hidden space-y-4">
+            {filteredShipments.map((shipment) => {
+              const containerType = getContainerType(shipment.cargo.containerType);
+              return (
+                <div
+                  key={shipment._id}
+                  className="bg-white rounded-2xl border border-gray-200 p-4"
+                >
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-bold text-gray-900 truncate">
+                        {shipment.trackingNumber}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        {containerType === 'Sea' ? (
+                          <Ship className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                        ) : (
+                          <Plane className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                        )}
+                        <span className="text-xs text-gray-600">{containerType}</span>
+                      </div>
+                    </div>
+                    <span
+                      className={cn(
+                        'px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0',
+                        statusConfig[shipment.status]?.color || 'bg-gray-100 text-gray-700'
+                      )}
+                    >
+                      {statusConfig[shipment.status]?.label || shipment.status}
+                    </span>
+                  </div>
+
+                  {/* Route */}
+                  <div className="space-y-2 mb-3">
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs text-gray-500 font-medium w-16 flex-shrink-0">From:</span>
+                      <span className="text-xs text-gray-900">
+                        {shipment.origin.port}, {shipment.origin.country}
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs text-gray-500 font-medium w-16 flex-shrink-0">To:</span>
+                      <span className="text-xs text-gray-900">
+                        {shipment.destination.port}, {shipment.destination.country}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Details Grid */}
+                  <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
+                    <div>
+                      <span className="text-gray-500">Date:</span>
+                      <p className="text-gray-900 font-medium mt-0.5">
+                        {formatDate(shipment.dates.departureDate)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">ETA:</span>
+                      <p className="text-gray-900 font-medium mt-0.5">
+                        {formatDate(shipment.dates.estimatedArrival)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Items:</span>
+                      <p className="text-gray-900 font-medium mt-0.5">
+                        {shipment.cargo.quantity || 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Value:</span>
+                      <p className="text-gray-900 font-medium mt-0.5">
+                        {formatCurrency(shipment.totalCost)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Action Button */}
+                  <button
+                    onClick={() => handleViewShipment(shipment)}
+                    className="w-full py-2.5 px-4 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Eye className="w-4 h-4" />
+                    View Details
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,8 @@ import {
   LogOut,
   Shield,
   MapPin,
+  Menu,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -77,9 +79,31 @@ const navItems: NavItem[] = [
   },
 ];
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isOpen?: boolean;
+  onToggle?: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onToggle }) => {
   const pathname = usePathname();
   const { user, loading } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
+
+  // Close mobile menu on window resize to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Check if user is super admin
   const isSuperAdmin = user?.role?.name === 'super_admin';
@@ -87,75 +111,108 @@ const Sidebar: React.FC = () => {
   // Helper function to check if user has a specific permission
   const hasPermission = (permission: string): boolean => {
     if (!user || !user.role) return false;
-    // Super admins have all permissions
     if (isSuperAdmin) return true;
     return user.role.permissions?.includes(permission) || false;
   };
 
   // Filter nav items based on user role and permissions
-  // Only filter after loading is complete to prevent flickering
   const visibleNavItems = navItems.filter(item => {
-    // Super admin only items
     if (item.superAdminOnly) {
       return loading || isSuperAdmin;
     }
-
-    // Permission-based items
     if (item.requiredPermission) {
       return loading || isSuperAdmin || hasPermission(item.requiredPermission);
     }
-
-    // Default: show item
     return true;
   });
 
+  const handleMobileMenuToggle = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+    if (onToggle) onToggle();
+  };
+
+  const handleLinkClick = () => {
+    setIsMobileMenuOpen(false);
+  };
+
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-gray-900 flex flex-col z-40">
-      {/* Logo Section */}
-      <div className="p-6 border-b border-gray-800 flex-shrink-0">
-        <Link href="/dashboard" className="flex items-center justify-center">
-          <img
-            src="/images/logo/logo.png"
-            alt="Ceylon Cargo Transport"
-            className="h-12 w-auto"
-          />
-        </Link>
-      </div>
+    <>
+      {/* Mobile Menu Button - Fixed at top left */}
+      <button
+        onClick={handleMobileMenuToggle}
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-gray-900 text-white rounded-lg shadow-lg hover:bg-gray-800 transition-colors"
+        aria-label="Toggle menu"
+      >
+        {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+      </button>
 
-      {/* Navigation - Scrollable */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {visibleNavItems.map((item) => {
-          const isActive = pathname === item.href;
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200',
-                isActive
-                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
-                  : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-              )}
-            >
-              {item.icon}
-              <span className="font-medium">{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          'fixed left-0 top-0 h-screen bg-gray-900 flex flex-col z-40 transition-transform duration-300 ease-in-out',
+          // Desktop: always visible
+          'lg:translate-x-0 lg:w-64',
+          // Mobile/Tablet: slide in/out
+          'w-72 sm:w-80',
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        )}
+      >
+        {/* Logo Section */}
+        <div className="p-4 sm:p-6 border-b border-gray-800 flex-shrink-0">
+          <Link href="/dashboard" className="flex items-center justify-center" onClick={handleLinkClick}>
+            <img
+              src="/images/logo/logo.png"
+              alt="Ceylon Cargo Transport"
+              className="h-10 sm:h-12 w-auto"
+            />
+          </Link>
+        </div>
 
-      {/* Logout Button */}
-      <div className="p-4 border-t border-gray-800 flex-shrink-0">
-        <Link
-          href="/login"
-          className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-all duration-200"
-        >
-          <LogOut className="h-5 w-5" />
-          <span className="font-medium">Logout</span>
-        </Link>
-      </div>
-    </aside>
+        {/* Navigation - Scrollable */}
+        <nav className="flex-1 p-3 sm:p-4 space-y-1 overflow-y-auto">
+          {visibleNavItems.map((item) => {
+            const isActive = pathname === item.href;
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={handleLinkClick}
+                className={cn(
+                  'flex items-center gap-3 px-3 sm:px-4 py-3 rounded-lg transition-all duration-200',
+                  isActive
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                )}
+              >
+                {item.icon}
+                <span className="font-medium text-sm sm:text-base">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Logout Button */}
+        <div className="p-3 sm:p-4 border-t border-gray-800 flex-shrink-0">
+          <Link
+            href="/login"
+            onClick={handleLinkClick}
+            className="flex items-center gap-3 px-3 sm:px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-all duration-200"
+          >
+            <LogOut className="h-5 w-5" />
+            <span className="font-medium text-sm sm:text-base">Logout</span>
+          </Link>
+        </div>
+      </aside>
+    </>
   );
 };
 

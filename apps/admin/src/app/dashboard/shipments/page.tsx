@@ -430,6 +430,7 @@ export default function ShipmentsPage() {
         <InvoiceModal
           shipmentId={invoiceShipment._id}
           shipmentNumber={invoiceShipment.shipmentId}
+          clientId={invoiceShipment.client._id}
           onClose={() => setInvoiceShipment(null)}
         />
       )}

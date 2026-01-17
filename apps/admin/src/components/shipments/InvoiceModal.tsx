@@ -1,20 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Download, Loader2 } from 'lucide-react';
+import { X, Download, Loader2, Save, Check } from 'lucide-react';
 import { shipmentService, InvoicePreview } from '@/services/shipmentService';
+import { invoiceService } from '@/services/invoiceService';
 
 interface InvoiceModalProps {
   shipmentId: string;
   shipmentNumber: string;
+  clientId: string;
   onClose: () => void;
+  onInvoiceSaved?: () => void;
 }
 
-export default function InvoiceModal({ shipmentId, shipmentNumber, onClose }: InvoiceModalProps) {
+export default function InvoiceModal({ shipmentId, shipmentNumber, clientId, onClose, onInvoiceSaved }: InvoiceModalProps) {
   const [invoice, setInvoice] = useState<InvoicePreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchInvoicePreview();
@@ -41,6 +47,48 @@ export default function InvoiceModal({ shipmentId, shipmentNumber, onClose }: In
       setError(err.message || 'Failed to download PDF');
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const handleSaveInvoice = async () => {
+    if (!invoice || saved) return;
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      // Convert line items to the format expected by the API
+      const items = invoice.lineItems.map(item => ({
+        description: item.description,
+        quantity: item.qty,
+        unitPrice: item.total / (item.qty || 1),
+        amount: item.total,
+      }));
+
+      // Calculate due date (30 days from now)
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 30);
+
+      await invoiceService.create({
+        client: clientId,
+        shipment: shipmentId,
+        items,
+        tax: invoice.summary.tax,
+        dueDate: dueDate.toISOString(),
+        notes: invoice.notes || '',
+      });
+
+      setSaved(true);
+      setSuccessMessage('Invoice saved successfully! It will now appear in the Invoices tab.');
+
+      // Notify parent component
+      if (onInvoiceSaved) {
+        onInvoiceSaved();
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to save invoice');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -252,31 +300,69 @@ export default function InvoiceModal({ shipmentId, shipmentNumber, onClose }: In
           ) : null}
         </div>
 
+        {/* Success Message */}
+        {successMessage && (
+          <div className="px-6 py-3 bg-green-50 border-t border-green-200">
+            <div className="flex items-center gap-2 text-green-700">
+              <Check className="h-5 w-5" />
+              <span>{successMessage}</span>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50">
+        <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center bg-gray-50">
           <button
             onClick={onClose}
             className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
             Close
           </button>
-          <button
-            onClick={handleDownloadPDF}
-            disabled={downloading || !invoice}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {downloading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Downloading...
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4" />
-                Download PDF
-              </>
-            )}
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handleSaveInvoice}
+              disabled={saving || saved || !invoice}
+              className={`px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
+                saved
+                  ? 'bg-green-600 text-white'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : saved ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  Saved
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Save Invoice
+                </>
+              )}
+            </button>
+            <button
+              onClick={handleDownloadPDF}
+              disabled={downloading || !invoice}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {downloading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Downloading...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  Download PDF
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

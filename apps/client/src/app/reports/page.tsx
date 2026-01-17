@@ -68,8 +68,8 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Invoices Table */}
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        {/* Invoices Table - Desktop */}
+        <div className="hidden md:block bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -146,6 +146,76 @@ export default function ReportsPage() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Invoices Cards - Mobile */}
+        <div className="md:hidden space-y-4">
+          {mockInvoices.map((invoice) => (
+            <div
+              key={invoice.id}
+              className="bg-white rounded-2xl border border-gray-200 p-4"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-bold text-gray-900 truncate">
+                    {invoice.invoiceNumber}
+                  </h3>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Order: {invoice.orderId}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    'px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0',
+                    statusConfig[invoice.status].color
+                  )}
+                >
+                  {statusConfig[invoice.status].label}
+                </span>
+              </div>
+
+              {/* Details */}
+              <div className="space-y-2 mb-3 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Date:</span>
+                  <span className="text-gray-900 font-medium">
+                    {formatDate(invoice.date)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Due Date:</span>
+                  <span className="text-gray-900 font-medium">
+                    {formatDate(invoice.dueDate)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Amount:</span>
+                  <span className="text-gray-900 font-bold text-sm">
+                    {formatCurrency(invoice.amount)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <Link
+                  href={`/reports/${invoice.id}`}
+                  className="flex-1 py-2.5 px-4 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <Eye className="w-4 h-4" />
+                  View
+                </Link>
+                <button className="py-2.5 px-4 border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
+                  <Download className="w-4 h-4" />
+                  Download
+                </button>
+                <button className="py-2.5 px-4 border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center">
+                  <Printer className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </PortalLayout>

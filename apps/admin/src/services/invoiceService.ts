@@ -122,10 +122,38 @@ export const invoiceService = {
     }
   },
 
+  delete: async (id: string): Promise<void> => {
+    try {
+      await api.delete(`/invoices/${id}`);
+    } catch (error) {
+      throw new Error(getErrorMessage(error));
+    }
+  },
+
   getStats: async (): Promise<InvoiceStats> => {
     try {
       const response = await api.get<ApiResponse<{ stats: InvoiceStats }>>('/invoices/stats');
       return response.data.data!.stats;
+    } catch (error) {
+      throw new Error(getErrorMessage(error));
+    }
+  },
+
+  downloadPDF: async (invoiceId: string, invoiceNumber: string): Promise<void> => {
+    try {
+      const response = await api.get(`/invoices/${invoiceId}/pdf`, {
+        responseType: 'blob',
+      });
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Invoice-${invoiceNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       throw new Error(getErrorMessage(error));
     }

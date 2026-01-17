@@ -118,7 +118,7 @@ export default function DashboardPage() {
         </div>
       }
     >
-      <div className="space-y-8">
+      <div className="space-y-4 md:space-y-6 lg:space-y-8">
         {/* Error Message */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -133,7 +133,7 @@ export default function DashboardPage() {
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <StatCard
             title="Total Shipments"
             value={stats.totalShipments}
@@ -162,19 +162,19 @@ export default function DashboardPage() {
         </div>
 
         {/* Track Shipment Section */}
-        <div className="bg-white rounded-2xl p-8 border border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to CCT</h2>
-          <p className="text-gray-600 mb-6">Track your shipment</p>
+        <div className="bg-white rounded-2xl p-4 md:p-6 lg:p-8 border border-gray-200">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">Welcome to CCT</h2>
+          <p className="text-sm md:text-base text-gray-600 mb-4 md:mb-6">Track your shipment</p>
 
-          <form onSubmit={handleTrack} className="flex gap-3">
+          <form onSubmit={handleTrack} className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
               placeholder="Enter Tracking ID"
               value={trackingId}
               onChange={(e) => setTrackingId(e.target.value)}
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm md:text-base"
             />
-            <Button type="submit" variant="primary" className="px-8 rounded-lg">
+            <Button type="submit" variant="primary" className="px-6 md:px-8 rounded-lg w-full sm:w-auto">
               Track
             </Button>
           </form>

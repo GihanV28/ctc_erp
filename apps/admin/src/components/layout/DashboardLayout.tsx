@@ -16,11 +16,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   subtitle,
 }) => {
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
-      <div className="flex-1 flex flex-col ml-64 h-screen overflow-hidden">
+      {/* Main content - responsive margin */}
+      <div className="flex-1 flex flex-col min-h-screen lg:ml-64">
         <Header title={title} subtitle={subtitle} />
-        <main className="flex-1 p-8 overflow-y-auto">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-x-hidden">
           {children}
         </main>
       </div>

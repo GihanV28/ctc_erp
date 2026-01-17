@@ -61,6 +61,19 @@ router.get(
 
 /**
  * @swagger
+ * /api/invoices/{id}/pdf:
+ *   get:
+ *     summary: Generate and download invoice PDF
+ *     tags: [Invoices]
+ */
+router.get(
+  '/:id/pdf',
+  hasAnyPermission(['invoices:read', 'invoices:read:own']),
+  invoiceController.generateInvoicePDF
+);
+
+/**
+ * @swagger
  * /api/invoices/{id}:
  *   get:
  *     summary: Get invoice by ID
@@ -122,6 +135,19 @@ router.put(
   '/:id/cancel',
   hasPermission('invoices:write'),
   invoiceController.cancelInvoice
+);
+
+/**
+ * @swagger
+ * /api/invoices/{id}:
+ *   delete:
+ *     summary: Delete invoice
+ *     tags: [Invoices]
+ */
+router.delete(
+  '/:id',
+  hasPermission('invoices:delete'),
+  invoiceController.deleteInvoice
 );
 
 module.exports = router;

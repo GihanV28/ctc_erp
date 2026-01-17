@@ -9,7 +9,6 @@ const invoiceSchema = new mongoose.Schema(
     },
     invoiceNumber: {
       type: String,
-      required: true,
       unique: true,
       uppercase: true,
     },
@@ -59,7 +58,7 @@ const invoiceSchema = new mongoose.Schema(
     ],
     subtotal: {
       type: Number,
-      required: true,
+      default: 0,
     },
     tax: {
       type: Number,
@@ -67,7 +66,7 @@ const invoiceSchema = new mongoose.Schema(
     },
     total: {
       type: Number,
-      required: true,
+      default: 0,
     },
     currency: {
       type: String,

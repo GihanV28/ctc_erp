@@ -32,15 +32,16 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
       </div>
 
       {/* Right Side - Form Content (Scrollable) */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 bg-gray-50">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 bg-gradient-to-br from-gray-900 via-gray-800 to-black lg:bg-none lg:bg-gray-50">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center justify-center mb-8">
+          <div className="lg:hidden flex flex-col items-center justify-center mb-8">
             <img
               src="/images/logo/logo.png"
               alt="Ceylon Cargo Transport"
-              className="h-14 w-auto"
+              className="h-16 w-auto mb-2"
             />
+            <h2 className="text-lg font-bold text-white">Ceylon Cargo Transport</h2>
           </div>
 
           {children}

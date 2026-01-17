@@ -160,8 +160,8 @@ export default function TrackingPage() {
     >
       <div className="space-y-6">
         {/* Search Bar */}
-        <div className="bg-white rounded-2xl p-6 border border-gray-200">
-          <div className="flex gap-3">
+        <div className="bg-white rounded-2xl p-4 md:p-6 border border-gray-200">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -170,14 +170,14 @@ export default function TrackingPage() {
                 value={trackingNumber}
                 onChange={(e) => setTrackingNumber(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleTrack()}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm md:text-base"
               />
             </div>
             <Button
               variant="primary"
               onClick={handleTrack}
               disabled={loading}
-              className="px-8"
+              className="px-6 md:px-8 w-full sm:w-auto"
             >
               {loading ? (
                 <>
@@ -206,54 +206,52 @@ export default function TrackingPage() {
         {trackingData && (
           <>
             {/* Shipment Header */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-200">
-              <div className="flex items-start justify-between mb-6">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Shipment ID</p>
-                  <h2 className="text-3xl font-bold text-gray-900">{trackingData.shipment.shipmentId}</h2>
-                  <div className="flex items-center gap-4 mt-2">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Package className="w-4 h-4" />
-                      Tracking: {trackingData.shipment.trackingNumber}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                          trackingData.shipment.status === 'delivered'
-                            ? 'bg-green-100 text-green-800'
-                            : trackingData.shipment.status === 'cancelled'
-                            ? 'bg-red-100 text-red-800'
-                            : trackingData.shipment.status === 'on_hold'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-blue-100 text-blue-800'
-                        )}
-                      >
-                        {statusLabels[trackingData.shipment.status] || trackingData.shipment.status}
-                      </span>
-                    </div>
+            <div className="bg-white rounded-2xl p-4 md:p-6 border border-gray-200">
+              <div className="mb-4 md:mb-6">
+                <p className="text-sm text-gray-600 mb-1">Shipment ID</p>
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-900">{trackingData.shipment.shipmentId}</h2>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Package className="w-4 h-4 flex-shrink-0" />
+                    <span className="truncate">Tracking: {trackingData.shipment.trackingNumber}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+                        trackingData.shipment.status === 'delivered'
+                          ? 'bg-green-100 text-green-800'
+                          : trackingData.shipment.status === 'cancelled'
+                          ? 'bg-red-100 text-red-800'
+                          : trackingData.shipment.status === 'on_hold'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-blue-100 text-blue-800'
+                      )}
+                    >
+                      {statusLabels[trackingData.shipment.status] || trackingData.shipment.status}
+                    </span>
                   </div>
                 </div>
               </div>
 
               {/* Shipment Route */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                 {/* Origin */}
                 <div>
-                  <p className="text-sm text-gray-600 mb-2 font-medium">Origin</p>
+                  <p className="text-xs md:text-sm text-gray-600 mb-2 font-medium">Origin</p>
                   <div className="flex items-start gap-2">
-                    <MapPin className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                    <MapPin className="w-4 h-4 md:w-5 md:h-5 text-green-600 mt-1 flex-shrink-0" />
                     <div>
-                      <p className="font-semibold text-gray-900">{trackingData.shipment.origin.port}</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="font-semibold text-sm md:text-base text-gray-900">{trackingData.shipment.origin.port}</p>
+                      <p className="text-xs md:text-sm text-gray-600">
                         {trackingData.shipment.origin.city}, {trackingData.shipment.origin.country}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Arrow */}
-                <div className="flex items-center justify-center">
+                {/* Arrow - Hidden on mobile, vertical line on mobile */}
+                <div className="hidden md:flex items-center justify-center">
                   <div className="text-gray-300">
                     <svg
                       className="w-12 h-12"
@@ -273,12 +271,12 @@ export default function TrackingPage() {
 
                 {/* Destination */}
                 <div>
-                  <p className="text-sm text-gray-600 mb-2 font-medium">Destination</p>
+                  <p className="text-xs md:text-sm text-gray-600 mb-2 font-medium">Destination</p>
                   <div className="flex items-start gap-2">
-                    <MapPin className="w-5 h-5 text-red-600 mt-1 flex-shrink-0" />
+                    <MapPin className="w-4 h-4 md:w-5 md:h-5 text-red-600 mt-1 flex-shrink-0" />
                     <div>
-                      <p className="font-semibold text-gray-900">{trackingData.shipment.destination.port}</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="font-semibold text-sm md:text-base text-gray-900">{trackingData.shipment.destination.port}</p>
+                      <p className="text-xs md:text-sm text-gray-600">
                         {trackingData.shipment.destination.city}, {trackingData.shipment.destination.country}
                       </p>
                     </div>
@@ -318,8 +316,8 @@ export default function TrackingPage() {
             </div>
 
             {/* Tracking Timeline */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-200">
-              <h3 className="text-lg font-bold text-gray-900 mb-6">Tracking History</h3>
+            <div className="bg-white rounded-2xl p-4 md:p-6 border border-gray-200">
+              <h3 className="text-base md:text-lg font-bold text-gray-900 mb-4 md:mb-6">Tracking History</h3>
 
               {trackingData.trackingUpdates.length === 0 ? (
                 <div className="text-center py-8">

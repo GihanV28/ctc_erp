@@ -45,9 +45,17 @@ export const Hero: React.FC = () => {
               variant="primary"
               size="xl"
               onClick={() => (window.location.href = SIGNUP_URL)}
-              className="w-full sm:w-auto"
+              className="w-full sm:w-56"
             >
               Join With Us
+            </Button>
+            <Button
+              variant="secondary"
+              size="xl"
+              onClick={() => window.open('/track', '_blank')}
+              className="w-full sm:w-56"
+            >
+              Track Your Order
             </Button>
           </div>
         </SlideIn>
