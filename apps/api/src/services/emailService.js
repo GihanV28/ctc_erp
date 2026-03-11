@@ -59,17 +59,24 @@ exports.sendWelcomeEmail = async (user, password) => {
 };
 
 // Send password reset email
-exports.sendPasswordResetEmail = async (user, resetToken) => {
-  const resetUrl = `${process.env.ADMIN_URL || 'http://localhost:3001'}/reset-password/${resetToken}`;
+exports.sendPasswordResetEmail = async (user, resetToken, resetUrl) => {
+  if (!resetUrl) {
+    const baseUrl = user.userType === 'client'
+      ? (process.env.CLIENT_URL || 'http://localhost:3002')
+      : (process.env.ADMIN_URL || 'http://localhost:3001');
+    resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
+  }
 
-  const subject = 'Password Reset Request';
+  const subject = 'Password Reset Request - Ceylon Cargo Transport';
   const html = `
-    <h1>Password Reset</h1>
-    <p>Hi ${user.firstName},</p>
-    <p>You requested to reset your password. Click the link below:</p>
-    <a href="${resetUrl}">Reset Password</a>
-    <p>This link will expire in 10 minutes.</p>
-    <p>If you didn't request this, please ignore this email.</p>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #7c3aed;">Password Reset Request</h2>
+      <p>Hi ${user.firstName},</p>
+      <p>You requested to reset your password. Click the button below:</p>
+      <a href="${resetUrl}" style="display:inline-block;padding:12px 24px;background-color:#7c3aed;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;">Reset Password</a>
+      <p style="margin-top:16px;">Or copy this link: <a href="${resetUrl}">${resetUrl}</a></p>
+      <p style="color:#6b7280;font-size:13px;">This link will expire in 10 minutes. If you didn't request this, please ignore this email.</p>
+    </div>
   `;
 
   return exports.sendEmail({

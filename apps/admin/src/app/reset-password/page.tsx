@@ -1,14 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AuthLayout from '@/components/layout/AuthLayout';
 import { Button, Input } from '@/components/ui';
 import { Lock } from 'lucide-react';
 import { ResetPasswordFormData } from '@/types';
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get('token');
+
   const [formData, setFormData] = useState<ResetPasswordFormData>({
     newPassword: '',
     confirmPassword: '',
@@ -16,13 +19,15 @@ export default function ResetPasswordPage() {
   const [errors, setErrors] = useState<Partial<Record<keyof ResetPasswordFormData, string>>>({});
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (!token) {
+      setErrors({ newPassword: 'Invalid or missing reset token. Please request a new password reset.' });
+    }
+  }, [token]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    // Clear error for this field
+    setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name as keyof ResetPasswordFormData]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
@@ -35,6 +40,8 @@ export default function ResetPasswordPage() {
       newErrors.newPassword = 'New password is required';
     } else if (formData.newPassword.length < 8) {
       newErrors.newPassword = 'Password must be at least 8 characters';
+    } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/.test(formData.newPassword)) {
+      newErrors.newPassword = 'Password must contain uppercase, lowercase, number, and special character';
     }
 
     if (!formData.confirmPassword) {
@@ -51,15 +58,34 @@ export default function ResetPasswordPage() {
     e.preventDefault();
 
     if (!validate()) return;
+    if (!token) {
+      setErrors({ newPassword: 'Invalid reset token.' });
+      return;
+    }
 
     setLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-      // Redirect to success page
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const res = await fetch(`${apiUrl}/auth/reset-password/${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: formData.newPassword, confirmPassword: formData.confirmPassword }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrors({ newPassword: data.message || 'Failed to reset password. The link may have expired.' });
+        return;
+      }
+
       router.push('/reset-password/success');
-    }, 1500);
+    } catch {
+      setErrors({ newPassword: 'Network error. Please check your connection and try again.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -105,11 +131,20 @@ export default function ResetPasswordPage() {
             size="lg"
             loading={loading}
             className="w-full"
+            disabled={!token}
           >
             Reset password
           </Button>
         </form>
       </div>
     </AuthLayout>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

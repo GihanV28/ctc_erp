@@ -48,12 +48,27 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-      // Redirect to email sent page
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const res = await fetch(`${apiUrl}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrors({ email: data.message || 'Something went wrong. Please try again.' });
+        return;
+      }
+
       router.push('/forgot-password/sent');
-    }, 1500);
+    } catch {
+      setErrors({ email: 'Network error. Please check your connection and try again.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
